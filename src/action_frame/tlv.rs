@@ -75,6 +75,23 @@ macro_rules! as_tlv {
         }
     };
 }
+macro_rules! into_tlv {
+    ($type_name:ty, $tlv_type:expr) => {
+        #[cfg(feature = "write")]
+        use super::{TLVType, TLV};
+        #[cfg(feature = "write")]
+        impl Into<TLV> for $type_name {
+            fn into(self) -> TLV {
+                let bytes = self.to_bytes().unwrap();
+                TLV {
+                    tlv_type: $tlv_type,
+                    tlv_length: bytes.len() as u16,
+                    tlv_data: bytes,
+                }
+            }
+        }
+    };
+}
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
@@ -145,16 +162,15 @@ pub mod version {
         /// The device class.
         pub device_class: AWDLDeviceClass,
     }
+    into_tlv!(VersionTLV, TLVType::Version);
 }
 pub mod arpa {
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use deku::{bitvec::Msb0, prelude::*};
 
-    use crate::action_frame::{dns_compression::AWDLDnsCompression, util};
-    #[cfg(all(not(feature = "std"), feature = "read"))]
-    use alloc::format;
-    #[cfg(all(not(feature = "std"), feature = "write"))]
+    use crate::action_frame::dns_compression::AWDLDnsCompression;
+    #[cfg(not(feature = "std"))]
     use alloc::vec::Vec;
     #[cfg(all(not(feature = "std"), feature = "read"))]
     use alloc::{format, string::ToString};
@@ -210,6 +226,7 @@ pub mod arpa {
         /// The actual arpa data.
         pub arpa: Hostname,
     }
+    into_tlv!(ArpaTLV, TLVType::Arpa);
 }
 
 #[cfg(test)]
