@@ -149,13 +149,34 @@ pub mod version {
 pub mod arpa {
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
-    use deku::prelude::*;
+    use deku::{bitvec::Msb0, prelude::*};
 
     use crate::action_frame::{dns_compression::AWDLDnsCompression, util};
     #[cfg(all(not(feature = "std"), feature = "read"))]
     use alloc::format;
     #[cfg(all(not(feature = "std"), feature = "write"))]
     use alloc::vec::Vec;
+    #[cfg(all(not(feature = "std"), feature = "read"))]
+    use alloc::{format, string::ToString};
+
+    #[cfg(feature = "read")]
+    use deku::{bitvec::BitSlice, ctx::Endian};
+
+    #[cfg(feature = "write")]
+    use deku::bitvec::BitVec;
+
+    #[cfg(feature = "read")]
+    fn read_string(
+        rest: &BitSlice<u8, Msb0>,
+        len: usize,
+    ) -> Result<(&BitSlice<u8, Msb0>, String), DekuError> {
+        let (rest, string) = Vec::<u8>::read(&rest, (len.into(), Endian::Little))?;
+        Ok((rest, String::from_utf8_lossy(string.as_ref()).to_string()))
+    }
+    #[cfg(feature = "write")]
+    fn write_string(output: &mut BitVec<u8, Msb0>, string: &String) -> Result<(), DekuError> {
+        string.as_bytes().write(output, ())
+    }
 
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
