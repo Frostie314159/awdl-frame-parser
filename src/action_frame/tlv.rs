@@ -216,25 +216,37 @@ pub mod arpa {
 mod tests {
     #[cfg(not(feature = "std"))]
     use alloc::vec;
+
     use deku::DekuContainerWrite;
 
-    use super::{ArpaTLV, version::VersionTLV};
+    use crate::action_frame::tlv::{TLVType, TLV};
 
+    use super::{version::VersionTLV, ArpaTLV};
+
+    macro_rules! test_tlv {
+        ($type_name:ty, $tlv_type:expr, $test_name:ident, $bytes:expr) => {
     #[test]
-    fn test_arpa_tlv() {
-        let bytes = vec![
-            0x03, 0x0f, 0x73, 0x69, 0x6d, 0x6f, 0x6e, 0x2d, 0x66, 0x72, 0x61, 0x6d, 0x65, 0x77,
-            0x6f, 0x72, 0x6b, 0xc0, 0x0c,
-        ];
-        let arpa = ArpaTLV::try_from(bytes.as_ref()).unwrap();
-        assert_eq!(arpa.to_bytes().unwrap(), bytes);
+            fn $test_name() {
+                let bytes = $bytes;
+                let tlv = <$type_name>::try_from(bytes.as_ref()).unwrap();
+                assert_eq!(tlv.to_bytes().unwrap(), bytes);
+                assert_eq!(
+                    <$type_name as Into<TLV>>::into(tlv),
+                    TLV {
+                        tlv_type: $tlv_type,
+                        tlv_length: bytes.len() as u16,
+                        tlv_data: bytes,
     }
-    #[test]
-    fn test_version_tlv() {
-        let bytes = vec![
-            0x10, 0x03
-        ];
-        let version = VersionTLV::try_from(bytes.as_ref()).unwrap();
-        assert_eq!(version.to_bytes().unwrap(), bytes);
+                );
     }
+        };
+    }
+
+    test_tlv!(
+        ArpaTLV,
+        TLVType::Arpa,
+        test_arpa,
+        vec![0x03, 0x0f, 0x62, 0x6d, 0x2d, 0x63, 0x33, 0x33, 0x2F, 0x61, 0xc0, 0x0c,]
+    );
+    test_tlv!(VersionTLV, TLVType::Version, test_tlv, vec![0x10, 0x03]);
 }
