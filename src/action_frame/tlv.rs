@@ -184,9 +184,12 @@ pub mod arpa {
     #[derive(Clone, PartialEq, Eq)]
     /// A hostname combined with the [domain](AWDLDnsCompression).
     pub struct Hostname {
+        /// An unknown random prefix byte before the host.
+        pub unknown: u8,
+
         #[deku(
-            reader = "util::read_string(deku::rest, (deku::rest.len() / 8) - 2)",
-            writer = "util::write_string(deku::output, &self.host)"
+            reader = "read_string(deku::rest, (deku::rest.len() / 8) - 2)",
+            writer = "write_string(deku::output, &self.host)"
         )]
         /// The hostname of the peer.
         pub host: String,
