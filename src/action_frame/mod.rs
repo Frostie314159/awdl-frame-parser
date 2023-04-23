@@ -13,7 +13,6 @@ use self::{tlv::TLV, version::AWDLVersion};
 
 pub mod dns_compression;
 pub mod tlv;
-mod util;
 mod version;
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
