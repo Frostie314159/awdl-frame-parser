@@ -42,13 +42,17 @@ pub enum TLVType {
     #[deku(id = "0x10")]
     Arpa,
 
-    /// The IEEE 802.11 container.
+    /// The VHT capabilities.
     #[deku(id = "0x11")]
-    IEEE80211Container,
+    VHTCapabilities,
 
     /// The channel sequence.
     #[deku(id = "0x12")]
     ChannelSequence,
+    
+    /// The synchronization tree.
+    #[deku(id = "0x14")]
+    SynchronizationTree,
 
     /// The actual version of the AWDL protocol, that's being used.
     #[deku(id = "0x15")]
