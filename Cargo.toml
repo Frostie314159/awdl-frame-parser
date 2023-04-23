@@ -21,5 +21,10 @@ opt-level = 3
 std = ["deku/std"]
 read = []
 write = []
-
-default = ["write", "read", "std"]
+version_tlv = []
+dns_sd_tlvs = []
+data_tlvs = []
+sync_elect_tlvs = []
+all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
+data_frame = []
+default = ["write", "read", "std", "all_tlvs", "data_frame"]

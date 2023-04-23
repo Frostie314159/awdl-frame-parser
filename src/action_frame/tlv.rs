@@ -1,5 +1,7 @@
-#[cfg(feature = "read")]
-use self::{arpa::ArpaTLV, version::VersionTLV};
+#[cfg(all(feature = "read", feature = "dns_sd_tlvs"))]
+use self::dns_sd::ArpaTLV;
+#[cfg(all(feature = "read", feature = "version_tlv"))]
+use self::version::VersionTLV;
 use deku::prelude::*;
 
 #[cfg(all(not(feature = "std"), feature = "read"))]
@@ -109,12 +111,15 @@ pub struct TLV {
     #[deku(count = "tlv_length")]
     pub tlv_data: Vec<u8>,
 }
-#[cfg(feature = "read")]
+#[cfg(all(feature = "read", any(feature = "version_tlv", feature = "dns_sd_tlvs", feature = "sync_elect_tlvs", feature = "data_tlvs")))]
 impl TLV {
+    #[cfg(feature = "version_tlv")]
     as_tlv_structure! {as_version, VersionTLV}
+    #[cfg(feature = "dns_sd_tlvs")]
     as_tlv_structure! {as_arpa, ArpaTLV}
 }
 
+#[cfg(feature = "version_tlv")]
 pub mod version {
     use deku::prelude::*;
 
@@ -136,7 +141,7 @@ pub mod version {
         #[default]
         #[deku(id = "0x01")]
         MacOS,
-        
+
         /// A iOS or watchOS device.
         #[deku(id = "0x02")]
         IOSWatchOS,
@@ -164,7 +169,8 @@ pub mod version {
     }
     into_tlv!(VersionTLV, TLVType::Version);
 }
-pub mod arpa {
+#[cfg(feature = "dns_sd_tlvs")]
+pub mod dns_sd {
     #[cfg(not(feature = "std"))]
     use alloc::string::String;
     use deku::{bitvec::Msb0, prelude::*};
@@ -242,7 +248,7 @@ mod tests {
 
     macro_rules! test_tlv {
         ($type_name:ty, $tlv_type:expr, $test_name:ident, $bytes:expr) => {
-    #[test]
+            #[test]
             fn $test_name() {
                 let bytes = $bytes;
                 let tlv = <$type_name>::try_from(bytes.as_ref()).unwrap();
@@ -253,9 +259,9 @@ mod tests {
                         tlv_type: $tlv_type,
                         tlv_length: bytes.len() as u16,
                         tlv_data: bytes,
-    }
+                    }
                 );
-    }
+            }
         };
     }
 
