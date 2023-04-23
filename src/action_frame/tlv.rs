@@ -68,7 +68,7 @@ pub enum TLVType {
 }
 
 #[cfg(feature = "read")]
-macro_rules! as_tlv {
+macro_rules! as_tlv_structure {
     ($fn_name:ident, $type_name:ty) => {
         pub fn $fn_name(&self) -> Option<$type_name> {
             Some(<$type_name>::try_from(self.tlv_data.as_ref()).unwrap())
@@ -111,8 +111,8 @@ pub struct TLV {
 }
 #[cfg(feature = "read")]
 impl TLV {
-    as_tlv! {as_version, VersionTLV}
-    as_tlv! {as_arpa, ArpaTLV}
+    as_tlv_structure! {as_version, VersionTLV}
+    as_tlv_structure! {as_arpa, ArpaTLV}
 }
 
 pub mod version {
