@@ -3,3 +3,5 @@
 - Added Into<TLV> for every TLV parser
 - Fixed Hostname parsing
 - Added features to toggle groups of TLV parsers.
+## 0.1.2
+- Reexported deku for trait inclusion

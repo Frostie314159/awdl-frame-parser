@@ -4,6 +4,7 @@ extern crate alloc;
 
 /// Structures related to AWDL action frames.
 pub mod action_frame;
+pub use deku;
 
 #[cfg(test)]
 mod tests {
