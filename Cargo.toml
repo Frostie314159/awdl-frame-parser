@@ -27,7 +27,8 @@ data_tlvs = []
 sync_elect_tlvs = []
 all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
 data_frame = []
-default = ["write", "read", "std", "all_tlvs", "data_frame"]
+debug = []
+default = ["write", "read", "std", "all_tlvs", "data_frame", "debug"]
 
 [dev-dependencies]
 criterion = "0.4.0"

@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 /// A version in AWDL format.
 pub struct AWDLVersion {

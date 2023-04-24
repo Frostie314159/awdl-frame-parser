@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[deku(type = "u8")]
 /// The type of the TLV.
@@ -97,7 +97,7 @@ macro_rules! into_tlv {
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
 /// A **T**ype **L**ength **V**alue structure.
 pub struct TLV {
@@ -132,7 +132,7 @@ pub mod version {
 
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
-    #[cfg_attr(feature = "std", derive(Debug))]
+    #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Default, Clone, Copy, PartialEq, Eq)]
     #[deku(type = "u8")]
     /// The device class of the peer.
@@ -157,7 +157,7 @@ pub mod version {
 
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
-    #[cfg_attr(feature = "std", derive(Debug))]
+    #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, Copy, PartialEq, Eq)]
     /// A TLV containing the actual version of the AWDL protocol.
     pub struct VersionTLV {
@@ -202,7 +202,7 @@ pub mod dns_sd {
 
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
-    #[cfg_attr(feature = "std", derive(Debug))]
+    #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, PartialEq, Eq)]
     /// A hostname combined with the [domain](AWDLDnsCompression).
     pub struct Hostname {
@@ -222,7 +222,7 @@ pub mod dns_sd {
 
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
-    #[cfg_attr(feature = "std", derive(Debug))]
+    #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, PartialEq, Eq)]
     /// A TLV containing the hostname of the peer. Used for reverse DNS.
     pub struct ArpaTLV {

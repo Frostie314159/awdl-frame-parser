@@ -17,7 +17,7 @@ pub mod version;
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[deku(type = "u8")]
 /// The subtype of the AF.
@@ -30,7 +30,7 @@ pub enum AWDLActionFrameSubType {
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
 #[deku(magic = b"\x08")]
 /// An AWDL AF(**A**ction **F**rame).

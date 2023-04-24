@@ -11,7 +11,7 @@ use alloc::{
 
 #[cfg_attr(feature = "read", derive(DekuRead))]
 #[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[deku(type = "u16")]
 /// Compressed dns-sd domains/services. Compression might be the wrong word though.
