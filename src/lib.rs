@@ -31,7 +31,7 @@ mod tests {
     }
     #[test]
     fn test_action_frame() {
-        let packet_bytes = include_bytes!("../mif.bin").to_vec();
+        let packet_bytes = include_bytes!("../test_bins/mif.bin").to_vec();
 
         let frame = AWDLActionFrame::try_from(packet_bytes.as_ref()).unwrap();
 
