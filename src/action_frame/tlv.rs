@@ -1,5 +1,5 @@
 #[cfg(all(feature = "read", feature = "dns_sd_tlvs"))]
-use self::dns_sd::ArpaTLV;
+use self::{dns_sd::ArpaTLV, sync_elect::ChannelSequenceTLV};
 #[cfg(all(feature = "read", feature = "version_tlv"))]
 use self::version::VersionTLV;
 use deku::prelude::*;
@@ -51,7 +51,7 @@ pub enum TLVType {
     /// The channel sequence.
     #[deku(id = "0x12")]
     ChannelSequence,
-    
+
     /// The synchronization tree.
     #[deku(id = "0x14")]
     SynchronizationTree,
@@ -105,18 +105,29 @@ pub struct TLV {
     pub tlv_type: TLVType,
 
     /// The length.
+    #[deku(update = "self.tlv_data.len()")]
     pub tlv_length: u16,
 
     /// The data contained within the TLV.
     #[deku(count = "tlv_length")]
     pub tlv_data: Vec<u8>,
 }
-#[cfg(all(feature = "read", any(feature = "version_tlv", feature = "dns_sd_tlvs", feature = "sync_elect_tlvs", feature = "data_tlvs")))]
+#[cfg(all(
+    feature = "read",
+    any(
+        feature = "version_tlv",
+        feature = "dns_sd_tlvs",
+        feature = "sync_elect_tlvs",
+        feature = "data_tlvs"
+    )
+))]
 impl TLV {
     #[cfg(feature = "version_tlv")]
     as_tlv_structure! {as_version, VersionTLV}
     #[cfg(feature = "dns_sd_tlvs")]
     as_tlv_structure! {as_arpa, ArpaTLV}
+    #[cfg(feature = "sync_elect_tlvs")]
+    as_tlv_structure! {as_chan_seq, ChannelSequenceTLV}
 }
 
 #[cfg(feature = "version_tlv")]
@@ -171,50 +182,52 @@ pub mod version {
 }
 #[cfg(feature = "dns_sd_tlvs")]
 pub mod dns_sd {
-    #[cfg(not(feature = "std"))]
-    use alloc::string::String;
     use deku::{bitvec::Msb0, prelude::*};
 
     use crate::action_frame::dns_compression::AWDLDnsCompression;
-    #[cfg(not(feature = "std"))]
-    use alloc::vec::Vec;
+    #[cfg(all(not(feature = "std"), feature = "write"))]
+    use alloc::{vec::Vec};
     #[cfg(all(not(feature = "std"), feature = "read"))]
-    use alloc::{format, string::ToString};
-
-    #[cfg(feature = "read")]
-    use deku::{bitvec::BitSlice, ctx::Endian};
+    use alloc::{format, string::String};
+    #[cfg(not(feature = "std"))]
+    use alloc::borrow::Cow;
+    #[cfg(feature = "std")]
+    use std::borrow::Cow;
 
     #[cfg(feature = "write")]
     use deku::bitvec::BitVec;
+    #[cfg(feature = "read")]
+    use deku::{bitvec::BitSlice, ctx::Endian};
 
     #[cfg(feature = "read")]
     fn read_string(
         rest: &BitSlice<u8, Msb0>,
         len: usize,
-    ) -> Result<(&BitSlice<u8, Msb0>, String), DekuError> {
-        let (rest, string) = Vec::<u8>::read(&rest, (len.into(), Endian::Little))?;
-        Ok((rest, String::from_utf8_lossy(string.as_ref()).to_string()))
+    ) -> Result<(&BitSlice<u8, Msb0>, Cow<'_, str>), DekuError> {
+        let (rest, string) = <&[u8]>::read(&rest, (len.into(), Endian::Little))?;
+        Ok((rest, String::from_utf8_lossy(string)))
     }
     #[cfg(feature = "write")]
-    fn write_string(output: &mut BitVec<u8, Msb0>, string: &String) -> Result<(), DekuError> {
+    fn write_string(output: &mut BitVec<u8, Msb0>, string: &str) -> Result<(), DekuError> {
         string.as_bytes().write(output, ())
     }
 
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, PartialEq, Eq)]
+    #[derive(Clone, Default, PartialEq, Eq)]
     /// A hostname combined with the [domain](AWDLDnsCompression).
-    pub struct Hostname {
+    pub struct Hostname<'a> {
         /// An unknown random prefix byte before the host.
         pub unknown: u8,
 
+        /// An unknown random prefix byte before the host.
         #[deku(
             reader = "read_string(deku::rest, (deku::rest.len() / 8) - 2)",
             writer = "write_string(deku::output, &self.host)"
         )]
         /// The hostname of the peer.
-        pub host: String,
+        pub host: Cow<'a, str>,
 
         /// The domain in [compressed form](AWDLDnsCompression).
         pub domain: AWDLDnsCompression,
@@ -223,16 +236,74 @@ pub mod dns_sd {
     #[cfg_attr(feature = "read", derive(DekuRead))]
     #[cfg_attr(feature = "write", derive(DekuWrite))]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, PartialEq, Eq)]
+    #[derive(Clone, Default, PartialEq, Eq)]
     /// A TLV containing the hostname of the peer. Used for reverse DNS.
-    pub struct ArpaTLV {
+    pub struct ArpaTLV<'a> {
         /// A currently unknown flags header.
         pub flags: u8,
 
         /// The actual arpa data.
-        pub arpa: Hostname,
+        pub arpa: Hostname<'a>,
     }
-    into_tlv!(ArpaTLV, TLVType::Arpa);
+    into_tlv!(ArpaTLV<'_>, TLVType::Arpa);
+}
+#[cfg(feature = "sync_elect_tlvs")]
+pub mod sync_elect {
+    use deku::{
+        prelude::*,
+    };
+
+    #[cfg(not(feature = "std"))]
+    use alloc::{format, vec::Vec};
+    #[cfg(all(not(feature = "std"), feature = "read"))]
+    use alloc::vec;
+
+    use crate::action_frame::channel::{Channel, ChannelEncoding};
+
+    #[cfg_attr(feature = "read", derive(DekuRead))]
+    #[cfg_attr(feature = "write", derive(DekuWrite))]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, PartialEq, Eq)]
+    pub struct ChannelSequenceTLV {
+        /// The number of channels minus one.
+        #[deku(update = "self.channels.len()-1")]
+        pub channel_count: u8,
+
+        /// The channel encoding.
+        pub channel_encoding: ChannelEncoding,
+
+        /// The amount of duplicates in the channel sequence.
+        pub duplicate_count: u8,
+
+        /// The amount of AWs spent on one channel.
+        pub step_count: u8,
+
+        /// Honestly no idea.
+        pub fill_channel: u16,
+
+        /// The channels.
+        #[deku(
+            reader = "Self::read_channels(deku::rest, channel_encoding, &(channel_count + 1))",
+            pad_bytes_after = "3"
+        )]
+        pub channels: Vec<Channel>,
+    }
+    impl ChannelSequenceTLV {
+        #[cfg(feature = "read")]
+        fn read_channels<'a>(
+            rest: &'a deku::bitvec::BitSlice<u8, deku::bitvec::Msb0>,
+            channel_encoding: &ChannelEncoding,
+            channel_count: &u8,
+        ) -> Result<(&'a deku::bitvec::BitSlice<u8, deku::bitvec::Msb0>, Vec<Channel>), DekuError> {
+            let mut channels = vec![Channel::Simple(0xff); *channel_count as usize];
+            let mut rest = rest;
+            for channel in channels.iter_mut() {
+                (rest, *channel) = Channel::read(rest, channel_encoding)?;
+            }
+            Ok((rest, channels))
+        }
+    }
+    into_tlv!(ChannelSequenceTLV, TLVType::ChannelSequence);
 }
 
 #[cfg(test)]
@@ -244,7 +315,7 @@ mod tests {
 
     use crate::action_frame::tlv::{TLVType, TLV};
 
-    use super::{version::VersionTLV, ArpaTLV};
+    use super::{sync_elect::ChannelSequenceTLV, version::VersionTLV, ArpaTLV};
 
     macro_rules! test_tlv {
         ($type_name:ty, $tlv_type:expr, $test_name:ident, $bytes:expr) => {
@@ -269,7 +340,18 @@ mod tests {
         ArpaTLV,
         TLVType::Arpa,
         test_arpa,
-        vec![0x03, 0x0f, 0x62, 0x6d, 0x2d, 0x63, 0x33, 0x33, 0x2F, 0x61, 0xc0, 0x0c,]
+        include_bytes!("../../test_bins/arpa_tlv.bin")[3..].to_vec()
     );
-    test_tlv!(VersionTLV, TLVType::Version, test_tlv, vec![0x10, 0x03]);
+    test_tlv!(
+        VersionTLV,
+        TLVType::Version,
+        test_version,
+        include_bytes!("../../test_bins/version_tlv.bin")[3..].to_vec()
+    );
+    test_tlv!(
+        ChannelSequenceTLV,
+        TLVType::ChannelSequence,
+        test_channel_seq,
+        include_bytes!("../../test_bins/channel_sequence_tlv.bin")[3..].to_vec()
+    );
 }

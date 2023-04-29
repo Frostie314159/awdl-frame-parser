@@ -1,5 +1,3 @@
-#[cfg(all(not(feature = "std"), feature = "read"))]
-use alloc::vec;
 #[cfg(not(feature = "std"))]
 use alloc::{format, vec::Vec};
 use deku::prelude::*;
@@ -11,6 +9,7 @@ use {
 
 use self::{tlv::TLV, version::AWDLVersion};
 
+pub mod channel;
 pub mod dns_compression;
 pub mod tlv;
 pub mod version;
@@ -91,8 +90,8 @@ impl AWDLActionFrame {
         if let Some(tlvs) = &self.tlvs {
             return Some(
                 tlvs.iter()
-            .filter(|tlv| tlv.tlv_type == tlv_type)
-            .map(|tlv| tlv.clone())
+                    .filter(|tlv| tlv.tlv_type == tlv_type)
+                    .map(|tlv| tlv.clone())
                     .collect(),
             );
         } else {
