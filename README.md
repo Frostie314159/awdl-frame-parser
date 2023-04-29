@@ -9,7 +9,7 @@
 * [x] Arpa
 * [x] Version
 * [ ] Synchronization parameters
-* [ ] Channel sequence
+* [x] Channel sequence
 * [ ] Election parameters
 * [ ] Election parameters v2
 * [ ] Synchronization tree
@@ -25,6 +25,7 @@ TLV | feature
 -- | --
 Arpa | dns_sd_tlvs
 Version | version_tlv
+Channel sequence | sync_elect_tlvs
 
 Do note please, that although the parsers are not yet present, the features are. Also some parsers where bundled into one feature. For more information on this refer to Milan Stute's [dissertation](https://tuprints.ulb.tu-darmstadt.de/11457/1/dissertation_milan-stute_2020.pdf#table.caption.42).
 ## no_std
