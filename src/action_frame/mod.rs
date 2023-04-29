@@ -59,13 +59,18 @@ pub struct AWDLActionFrame {
     //TLVs
     /// The TLVs contained in the action frame.
     #[deku(reader = "Self::read_tlvs(deku::rest)")]
-    pub tlvs: Vec<TLV>,
+    pub tlvs: Option<Vec<TLV>>,
 }
 #[cfg(feature = "read")]
 impl AWDLActionFrame {
-    fn read_tlvs(rest: &BitSlice<u8, Msb0>) -> Result<(&BitSlice<u8, Msb0>, Vec<TLV>), DekuError> {
+    pub fn read_tlvs(
+        rest: &BitSlice<u8, Msb0>,
+    ) -> Result<(&BitSlice<u8, Msb0>, Option<Vec<TLV>>), DekuError> {
+        if rest.len() == 0 {
+            return Ok((rest, None));
+        }
         let mut rest = rest;
-        let mut tlvs = vec![];
+        let mut tlvs = Vec::with_capacity(32);
         loop {
             match TLV::read(rest, ()) {
                 Ok((rest2, tlv)) => {
@@ -80,13 +85,18 @@ impl AWDLActionFrame {
                 }
             }
         }
-        Ok((rest, tlvs))
+        Ok((rest, Some(tlvs)))
     }
-    pub fn get_tlvs(&self, tlv_type: TLVType) -> Vec<TLV> {
-        self.tlvs
-            .iter()
+    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<TLV>> {
+        if let Some(tlvs) = &self.tlvs {
+            return Some(
+                tlvs.iter()
             .filter(|tlv| tlv.tlv_type == tlv_type)
             .map(|tlv| tlv.clone())
-            .collect()
+                    .collect(),
+            );
+        } else {
+            return None;
+        }
     }
 }
