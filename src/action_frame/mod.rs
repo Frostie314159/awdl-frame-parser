@@ -1,11 +1,10 @@
-#[cfg(not(feature = "std"))]
-use alloc::{format, vec::Vec};
-use deku::prelude::*;
-#[cfg(feature = "read")]
-use {
-    self::tlv::TLVType,
-    deku::bitvec::{BitSlice, Msb0},
-};
+use core::fmt::Debug;
+
+use self::tlv::TLVType;
+
+use alloc::vec::Vec;
+
+use crate::enum_to_int;
 
 use self::{tlv::TLV, version::AWDLVersion};
 
@@ -14,26 +13,30 @@ pub mod dns_compression;
 pub mod tlv;
 pub mod version;
 
-#[cfg_attr(feature = "read", derive(DekuRead))]
-#[cfg_attr(feature = "write", derive(DekuWrite))]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[deku(type = "u8")]
 /// The subtype of the AF.
 pub enum AWDLActionFrameSubType {
-    /// **M**aster **I**ndication **F**rame
-    MIF = 3,
     /// **P**eriodic **S**ynchronization **F**rame
-    PSF = 0,
+    PSF,
+    /// **M**aster **I**ndication **F**rame
+    MIF,
+
+    Unknown(u8),
+}
+enum_to_int! {
+    u8,
+    AWDLActionFrameSubType,
+
+    0x00,
+    AWDLActionFrameSubType::PSF,
+    0x03,
+    AWDLActionFrameSubType::MIF
 }
 
-#[cfg_attr(feature = "read", derive(DekuRead))]
-#[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
-#[deku(magic = b"\x08")]
 /// An AWDL AF(**A**ction **F**rame).
-pub struct AWDLActionFrame {
+pub struct AWDLActionFrame<'a> {
     /**
      * This is the version of the AWDL protocol.
      * This is, for an unknown reason, always 1.0, the actual version is found in the Version TLV.
@@ -43,7 +46,6 @@ pub struct AWDLActionFrame {
     /**
      * This is the subtype of the AF. Options are [MIF](AWDLActionFrameSubType::MIF) and [PSF](AWDLActionFrameSubType::PSF)
      */
-    #[deku(pad_bytes_after = "1")]
     pub subtype: AWDLActionFrameSubType,
 
     /**
@@ -57,45 +59,97 @@ pub struct AWDLActionFrame {
 
     //TLVs
     /// The TLVs contained in the action frame.
-    #[deku(reader = "Self::read_tlvs(deku::rest)")]
-    pub tlvs: Option<Vec<TLV>>,
+    pub tlvs: Vec<TLV<'a>>,
+}
+impl AWDLActionFrame<'_> {
+    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<TLV>> {
+        return Some(
+            self.tlvs
+                .iter()
+                .filter(|tlv| tlv.tlv_type == tlv_type)
+                .cloned()
+                .collect(),
+        );
+    }
 }
 #[cfg(feature = "read")]
-impl AWDLActionFrame {
-    pub fn read_tlvs(
-        rest: &BitSlice<u8, Msb0>,
-    ) -> Result<(&BitSlice<u8, Msb0>, Option<Vec<TLV>>), DekuError> {
-        if rest.len() == 0 {
-            return Ok((rest, None));
+impl<'a> crate::parser::Read for AWDLActionFrame<'a> {
+    type Error = crate::parser::ParserError;
+    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+        use crate::parser::{ParserError, ReadFixed};
+        if data.len() < 12 {
+            return Err(ParserError::HeaderIncomplete((12 - data.len()) as u8));
         }
-        let mut rest = rest;
-        let mut tlvs = Vec::with_capacity(32);
-        loop {
-            match TLV::read(rest, ()) {
-                Ok((rest2, tlv)) => {
-                    rest = rest2;
-                    tlvs.push(tlv);
-                }
-                Err(DekuError::Parse(_)) | Err(DekuError::Incomplete(_)) => {
-                    break;
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
-        Ok((rest, Some(tlvs)))
+
+        // Using unwrap is ok now, since we would've already returned if data is shorter than 12 bytes.
+        match data.next() {
+            Some(0x08) => {}
+            None => unreachable!(),
+            _ => return Err(ParserError::InvalidMagic),
+        };
+        let awdl_version = AWDLVersion::from_bytes(&[data.next().unwrap()]).unwrap();
+
+        let subtype = data.next().unwrap().into();
+        let _ = data.next();
+
+        let phy_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
+        let target_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
+
+        let tlvs = <Vec<TLV> as crate::parser::Read>::from_bytes(data).unwrap();
+
+        Ok(Self {
+            awdl_version,
+            subtype,
+            phy_tx_time,
+            target_tx_time,
+            tlvs,
+        })
     }
-    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<TLV>> {
-        if let Some(tlvs) = &self.tlvs {
-            return Some(
-                tlvs.iter()
-                    .filter(|tlv| tlv.tlv_type == tlv_type)
-                    .map(|tlv| tlv.clone())
-                    .collect(),
-            );
-        } else {
-            return None;
-        }
+}
+#[cfg(feature = "write")]
+impl<'a> crate::parser::Write<'a> for AWDLActionFrame<'a> {
+    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+        use crate::parser::WriteFixed;
+        let mut header = [0x08u8; 12];
+        header[1] = self.awdl_version.to_bytes()[0];
+        header[2] = self.subtype.into();
+        header[3] = 0x00;
+        header[4..8].copy_from_slice(&self.phy_tx_time.to_le_bytes());
+        header[8..12].copy_from_slice(&self.target_tx_time.to_le_bytes());
+
+        header
+            .iter()
+            .chain(self.tlvs.to_bytes().iter())
+            .copied()
+            .collect()
     }
+}
+#[cfg(feature = "debug")]
+impl Debug for AWDLActionFrame<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AWDLActionFrame")
+            .field("awdl_version", &self.awdl_version)
+            .field("subtype", &self.subtype)
+            .field("phy_tx_time", &self.phy_tx_time)
+            .field("target_tx_time", &self.target_tx_time)
+            .field(
+                "tlvs",
+                &self
+                    .tlvs
+                    .iter()
+                    .map(|x| x.tlv_type)
+                    .collect::<alloc::borrow::Cow<[TLVType]>>(),
+            )
+            .finish()
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_action_frame() {
+    use crate::parser::{Read, Write};
+    let packet_bytes: &[u8] = include_bytes!("../../test_bins/mif.bin");
+
+    let frame = AWDLActionFrame::from_bytes(&mut packet_bytes.into_iter().map(|x| *x)).unwrap();
+
+    assert_eq!(frame.to_bytes(), packet_bytes);
 }

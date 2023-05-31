@@ -1,69 +1,81 @@
-use deku::prelude::*;
+use crate::enum_to_int;
 
-#[cfg(all(not(feature = "std"), feature = "write"))]
-use alloc::vec::Vec;
-
-#[cfg(not(feature = "std"))]
 use alloc::{
     format,
     string::{String, ToString},
 };
 
-#[cfg_attr(feature = "read", derive(DekuRead))]
-#[cfg_attr(feature = "write", derive(DekuWrite))]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-#[deku(type = "u16")]
 /// Compressed dns-sd domains/services. Compression might be the wrong word though.
 pub enum AWDLDnsCompression {
-    #[deku(id = "0x00C0")]
     Null,
 
-    #[deku(id = "0x01C0")]
     AirPlayTcpLocal,
 
-    #[deku(id = "0x02C0")]
     AirPlayUdpLocal,
 
-    #[deku(id = "0x03C0")]
     AirPlay,
 
-    #[deku(id = "0x04C0")]
     RaopTcpLocal,
 
-    #[deku(id = "0x05C0")]
     RaopUdpLocal,
 
-    #[deku(id = "0x06C0")]
     Raop,
 
-    #[deku(id = "0x07C0")]
     AirDropTcpLocal,
 
-    #[deku(id = "0x08C0")]
     AirDropUdpLocal,
 
-    #[deku(id = "0x09C0")]
     AirDrop,
 
-    #[deku(id = "0x0AC0")]
     TcpLocal,
 
-    #[deku(id = "0x0BC0")]
     UdpLocal,
 
     #[default]
-    #[deku(id = "0x0CC0")]
     Local,
 
-    #[deku(id = "0x0DC0")]
     Ip6Arpa,
 
-    #[deku(id = "0x0EC0")]
     Ip4Arpa,
 
-    #[deku(id_pat = "_")]
     Unknown(u16),
+}
+enum_to_int! {
+    u16,
+    AWDLDnsCompression,
+
+    0x00C0,
+    AWDLDnsCompression::Null,
+    0x01C0,
+    AWDLDnsCompression::AirPlayTcpLocal,
+    0x02C0,
+    AWDLDnsCompression::AirPlayUdpLocal,
+    0x03C0,
+    AWDLDnsCompression::AirPlay,
+    0x04C0,
+    AWDLDnsCompression::RaopTcpLocal,
+    0x05C0,
+    AWDLDnsCompression::RaopUdpLocal,
+    0x06C0,
+    AWDLDnsCompression::Raop,
+    0x07C0,
+    AWDLDnsCompression::AirDropTcpLocal,
+    0x08C0,
+    AWDLDnsCompression::AirDropUdpLocal,
+    0x09C0,
+    AWDLDnsCompression::AirDrop,
+    0x0AC0,
+    AWDLDnsCompression::TcpLocal,
+    0x0BC0,
+    AWDLDnsCompression::UdpLocal,
+    0x0CC0,
+    AWDLDnsCompression::Local,
+    0x0DC0,
+    AWDLDnsCompression::Ip6Arpa,
+    0x0EC0,
+    AWDLDnsCompression::Ip4Arpa
 }
 macro_rules! string {
     ($str:expr) => {

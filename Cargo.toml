@@ -8,27 +8,21 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/Frostie314159/awdl-frame-parser"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-bitflags = "2.1.0"
-deku = { version = "0.16.0", default-features = false, features = ["alloc"] }
-
 [profile.release]
 opt-level = 3
 
 [features]
-std = ["deku/std"]
 read = []
 write = []
 version_tlv = []
 dns_sd_tlvs = []
 data_tlvs = []
 sync_elect_tlvs = []
-all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
 data_frame = []
 debug = []
-default = ["write", "read", "std", "all_tlvs", "data_frame", "debug"]
+fixed_chan_seq = []
+all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
+default = ["write", "read", "all_tlvs", "data_frame", "debug", "fixed_chan_seq"]
 
 [dev-dependencies]
 criterion = "0.4.0"
