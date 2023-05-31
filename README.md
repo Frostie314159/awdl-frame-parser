@@ -23,7 +23,7 @@ The parser was designed to be able to run in low flash environments(i.e. ESP32, 
 To reduce size there is currently the option to disable the "read" or "write" feature, which will strip this functionality from the library. Other than that, there is the option to remove certain TLV parsers from the library, by turning of their respective features.
 The listed time complexity refers to, if the parser runtime rises with input length.
 TLV | feature | Worst case time complexity
--- | --
+-- | -- | --
 Arpa | dns_sd_tlvs | O(n)
 Version | version_tlv | O(1)
 Channel sequence | sync_elect_tlvs | O(2n)
