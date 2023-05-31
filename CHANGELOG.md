@@ -7,3 +7,9 @@
 - Reexported deku for trait inclusion.
 ## 0.1.3
 - Added channel sequence.
+## 0.2.1
+- Migrated from deku to handwritten parsers
+- Improved internal architecture an robustness
+- Replaced any uses of std with alloc
+- Introduced better Debug formatters for AWDLVersion and AWDLActionFrame
+- Introduced PartialOrd for AWDLVersion
