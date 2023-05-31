@@ -108,6 +108,14 @@ impl crate::parser::ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
     ) -> Result<Self, Self::Error> {
         use crate::parser::ParserError;
 
+        fn parse_2byte_channel<F: Fn(u8, u8) -> Channel>(data: &mut impl ExactSizeIterator<Item = u8>, f: F) -> [Channel; 16] {
+            let mut channels = [f(0x00, 0x00); 16];
+            let bytes = data.next_chunk::<32>().unwrap();
+            (0..16)
+                .for_each(|i| channels[i] = f(bytes[2 * i], bytes[2 * i + 1]));
+            channels
+        }
+
         match ctx.1 {
             ChannelEncoding::Simple if data.len() < 16 => {
                 return Err(ParserError::TooLittleData(16 - data.len()))
@@ -117,19 +125,8 @@ impl crate::parser::ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
         };
         Ok(match ctx.1 {
             ChannelEncoding::Simple => data.next_chunk::<16>().unwrap().map(Channel::Simple),
-            ChannelEncoding::Legacy => {
-                let mut channels = [Channel::Legacy(0x00, 0x00); 16];
-                let bytes = data.next_chunk::<32>().unwrap();
-                (0..16).for_each(|i| channels[i] = Channel::Legacy(bytes[2 * i], bytes[2 * i + 1]));
-                channels
-            }
-            ChannelEncoding::OpClass => {
-                let mut channels = [Channel::OpClass(0x00, 0x00); 16];
-                let bytes = data.next_chunk::<32>().unwrap();
-                (0..16)
-                    .for_each(|i| channels[i] = Channel::OpClass(bytes[2 * i], bytes[2 * i + 1]));
-                channels
-            }
+            ChannelEncoding::Legacy => parse_2byte_channel(data, Channel::Legacy),
+            ChannelEncoding::OpClass => parse_2byte_channel(data, Channel::OpClass),
             _ => return Err(ParserError::ValueNotUnderstood),
         })
     }
