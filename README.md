@@ -10,7 +10,7 @@
 * [x] Version
 * [ ] Synchronization parameters
 * [x] Channel sequence
-* [ ] Election parameters
+* [x] Election parameters
 * [ ] Election parameters v2
 * [ ] Synchronization tree
 * [ ] Data path state

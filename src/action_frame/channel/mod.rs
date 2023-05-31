@@ -37,8 +37,11 @@ enum_to_int! {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
+    /// Channel
     Simple(u8),
+    /// Flags, Channel
     Legacy(u8, u8),
+    /// Channel, OpClass
     OpClass(u8, u8),
 }
 impl From<Channel> for ChannelEncoding {
@@ -108,11 +111,13 @@ impl crate::parser::ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
     ) -> Result<Self, Self::Error> {
         use crate::parser::ParserError;
 
-        fn parse_2byte_channel<F: Fn(u8, u8) -> Channel>(data: &mut impl ExactSizeIterator<Item = u8>, f: F) -> [Channel; 16] {
+        fn parse_2byte_channel<F: Fn(u8, u8) -> Channel>(
+            data: &mut impl ExactSizeIterator<Item = u8>,
+            f: F,
+        ) -> [Channel; 16] {
             let mut channels = [f(0x00, 0x00); 16];
             let bytes = data.next_chunk::<32>().unwrap();
-            (0..16)
-                .for_each(|i| channels[i] = f(bytes[2 * i], bytes[2 * i + 1]));
+            (0..16).for_each(|i| channels[i] = f(bytes[2 * i], bytes[2 * i + 1]));
             channels
         }
 

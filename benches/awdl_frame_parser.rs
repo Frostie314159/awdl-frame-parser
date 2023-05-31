@@ -1,7 +1,7 @@
 use awdl_frame_parser::{
     action_frame::{
         channel::{Channel, ChannelEncoding},
-        tlv::{dns_sd::ArpaTLV, sync_elect::ChannelSequenceTLV, version::VersionTLV, TLVType, TLV},
+        tlv::{dns_sd::ArpaTLV, sync_elect::{ChannelSequenceTLV, ElectionParametersTLV}, version::VersionTLV, TLVType, TLV},
         AWDLActionFrame,
     },
     parser::{Read, ReadCtx, ReadFixed, Write, WriteFixed},
@@ -61,6 +61,8 @@ bench_read!(bench_read_channel_sequence_tlv, ChannelSequenceTLV);
 bench_write!(bench_write_channel_sequence_tlv, ChannelSequenceTLV);
 bench_read!(bench_read_channel, Channel, ChannelEncoding);
 bench_write!(bench_write_channel, Channel);
+bench_read!(bench_read_election_parameters_tlv, ElectionParametersTLV, 21);
+bench_write!(bench_write_election_parameters_tlv, ElectionParametersTLV);
 
 fn criterion_benchmark(c: &mut Criterion) {
     let af_bytes = include_bytes!("../test_bins/mif.bin").to_vec();
@@ -107,6 +109,11 @@ fn criterion_benchmark(c: &mut Criterion) {
     );
     let channel = Channel::OpClass(0x6, 0x51);
     register_bench_fn!(c, bench_write_channel, &channel);
+
+    let election_parameters_tlv_bytes = include_bytes!("../test_bins/election_parameters_tlv.bin")[3..24].try_into().unwrap();
+    register_bench_fn!(c, bench_read_election_parameters_tlv, election_parameters_tlv_bytes);
+    let election_parameters_tlv = ElectionParametersTLV::from_bytes(election_parameters_tlv_bytes).unwrap();
+    register_bench_fn!(c, bench_write_election_parameters_tlv, &election_parameters_tlv);
 }
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);

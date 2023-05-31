@@ -602,4 +602,90 @@ pub mod sync_elect {
 
         assert_eq!(channel_sequence_tlv.to_bytes(), &bytes[3..]);
     }
+
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, PartialEq, Eq)]
+    pub struct ElectionParametersTLV {
+        pub flags: u8,
+
+        pub id: u16,
+
+        pub distance_to_master: u8,
+
+        pub master_address: [u8; 6],
+
+        pub master_metric: u32,
+
+        pub self_metric: u32,
+    }
+    #[cfg(feature = "read")]
+    impl crate::parser::ReadFixed<21> for ElectionParametersTLV {
+        type Error = crate::parser::ParserError;
+
+        fn from_bytes(data: &[u8; 21]) -> Result<Self, Self::Error> {
+            let mut data = data.iter().copied();
+            let flags = data.next().unwrap();
+            let id = u16::from_le_bytes(data.next_chunk().unwrap()); // In reality this is always zero.
+            let distance_to_master = data.next().unwrap();
+            let _ = data.next();
+            let master_address = data.next_chunk::<6>().unwrap();
+            let master_metric = u32::from_le_bytes(data.next_chunk().unwrap());
+            let self_metric = u32::from_le_bytes(data.next_chunk().unwrap());
+            Ok(Self {
+                flags,
+                id,
+                distance_to_master,
+                master_address,
+                master_metric,
+                self_metric
+            })
+        }
+    }
+    #[cfg(feature = "write")]
+    impl crate::parser::WriteFixed<21> for ElectionParametersTLV {
+        fn to_bytes(&self) -> [u8; 21] {
+            let mut bytes = [0x00; 21];
+            bytes[0] = self.flags;
+            bytes[1..3].copy_from_slice(&self.id.to_le_bytes());
+            bytes[3] = self.distance_to_master;
+            bytes[5..11].copy_from_slice(&self.master_address);
+            bytes[11..15].copy_from_slice(&self.master_metric.to_le_bytes());
+            bytes[15..19].copy_from_slice(&self.self_metric.to_le_bytes());
+            bytes
+        }
+    }
+    impl_tlv_conversion_fixed!(ElectionParametersTLV, TLVType::ElectionParameters, 21);
+    
+    #[cfg(test)]
+    #[test]
+    fn test_election_parameters_tlv() {
+        use super::TLV;
+        use crate::{
+            parser::{Read, WriteFixed},
+        };
+
+        let bytes = include_bytes!("../../test_bins/election_parameters_tlv.bin");
+
+        let tlv = TLV::from_bytes(&mut bytes.iter().map(|x| *x)).unwrap();
+
+        let election_parameters_tlv = ElectionParametersTLV::try_from(tlv.clone()).unwrap();
+        assert_eq!(
+            tlv,
+            <ElectionParametersTLV as Into<TLV>>::into(election_parameters_tlv.clone())
+        );
+
+        assert_eq!(
+            election_parameters_tlv,
+            ElectionParametersTLV {
+                flags: 0x00,
+                id: 0x00,
+                distance_to_master: 0x02,
+                master_address: [0x3a, 0xb4, 0x08, 0x6e, 0x66, 0x3d],
+                master_metric: 541,
+                self_metric: 60
+            }
+        );
+
+        assert_eq!(election_parameters_tlv.to_bytes(), bytes[3..]);
+    }
 }
