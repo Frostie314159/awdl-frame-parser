@@ -26,10 +26,3 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
-    - name: rust-cargo-install
-      uses: actions-rs/install@v0.1.2
-      with:
-        crate: cargo-criterion
-        version: latest
-    - name: Run benchmarks
-      run: cargo bench
