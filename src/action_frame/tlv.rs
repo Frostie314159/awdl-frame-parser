@@ -1,173 +1,239 @@
-#[cfg(all(feature = "read", feature = "dns_sd_tlvs"))]
-use self::{dns_sd::ArpaTLV, sync_elect::ChannelSequenceTLV};
-#[cfg(all(feature = "read", feature = "version_tlv"))]
-use self::version::VersionTLV;
-use deku::prelude::*;
+use crate::enum_to_int;
 
-#[cfg(all(not(feature = "std"), feature = "read"))]
-use alloc::format;
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
+use alloc::{borrow::Cow, vec::Vec};
 
-#[cfg_attr(feature = "read", derive(DekuRead))]
-#[cfg_attr(feature = "write", derive(DekuWrite))]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[deku(type = "u8")]
 /// The type of the TLV.
 pub enum TLVType {
     /// The service parameters.
-    #[deku(id = "0x02")]
     ServiceResponse,
 
     /// The synchronization parameters.
-    #[deku(id = "0x04")]
     SynchronizationParameters,
 
     /// The election parameters.
-    #[deku(id = "0x05")]
     ElectionParameters,
 
     /// The service parameters.
-    #[deku(id = "0x06")]
     ServiceParameters,
 
     /// The HT capabilities.
-    #[deku(id = "0x07")]
     HTCapabilities,
 
     /// The data path state.
-    #[deku(id = "0x0C")]
     DataPathState,
 
     /// The hostname of the peer.
-    #[deku(id = "0x10")]
     Arpa,
 
     /// The VHT capabilities.
-    #[deku(id = "0x11")]
     VHTCapabilities,
 
     /// The channel sequence.
-    #[deku(id = "0x12")]
     ChannelSequence,
 
     /// The synchronization tree.
-    #[deku(id = "0x14")]
     SynchronizationTree,
 
     /// The actual version of the AWDL protocol, that's being used.
-    #[deku(id = "0x15")]
     Version,
 
     /// The V2 Election Parameters.
-    #[deku(id = "0x18")]
     ElectionParametersV2,
 
-    /// Any TLV type that's unknown to the parser.
-    #[deku(id_pat = "_")]
     Unknown(u8),
 }
+enum_to_int! {
+    u8,
+    TLVType,
 
-#[cfg(feature = "read")]
-macro_rules! as_tlv_structure {
-    ($fn_name:ident, $type_name:ty) => {
-        pub fn $fn_name(&self) -> Option<$type_name> {
-            Some(<$type_name>::try_from(self.tlv_data.as_ref()).unwrap())
-        }
-    };
+    0x02,
+    TLVType::ServiceResponse,
+    0x04,
+    TLVType::SynchronizationParameters,
+    0x05,
+    TLVType::ElectionParameters,
+    0x06,
+    TLVType::ServiceParameters,
+    0x07,
+    TLVType::HTCapabilities,
+    0x0C,
+    TLVType::DataPathState,
+    0x10,
+    TLVType::Arpa,
+    0x11,
+    TLVType::VHTCapabilities,
+    0x12,
+    TLVType::ChannelSequence,
+    0x14,
+    TLVType::SynchronizationTree,
+    0x15,
+    TLVType::Version,
+    0x18,
+    TLVType::ElectionParametersV2
 }
-macro_rules! into_tlv {
-    ($type_name:ty, $tlv_type:expr) => {
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
+/// A **T**ype **L**ength **V**alue structure.
+pub struct TLV<'a> {
+    /// The type.
+    pub tlv_type: TLVType,
+
+    /// The data contained within the TLV.
+    pub tlv_data: Cow<'a, [u8]>,
+}
+#[cfg(feature = "read")]
+impl crate::parser::Read for TLV<'_> {
+    type Error = crate::parser::ParserError;
+
+    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+        use crate::parser::ParserError;
+        use core::cmp::Ordering;
+        if data.len() < 3 {
+            return Err(ParserError::TooLittleData(3 - data.len()));
+        }
+
+        let tlv_type = data.next().unwrap().into();
+        let tlv_length = u16::from_le_bytes(data.next_chunk().unwrap());
+        let tlv_data = match data.len().cmp(&(tlv_length as usize)) {
+            Ordering::Less => {
+                return Err(ParserError::TooLittleData(tlv_length as usize - data.len()))
+            }
+            Ordering::Equal | Ordering::Greater => {
+                Cow::Owned((0..tlv_length).map(|_| data.next().unwrap()).collect())
+            }
+        };
+
+        Ok(Self { tlv_type, tlv_data })
+    }
+}
+#[cfg(feature = "write")]
+impl<'a> crate::parser::Write<'a> for TLV<'a> {
+    fn to_bytes(&self) -> Cow<'a, [u8]> {
+        let tlv_length = self.tlv_data.len().to_le_bytes();
+        let tlv_header = [self.tlv_type.into(), tlv_length[0], tlv_length[1]];
+        [tlv_header.as_slice(), &self.tlv_data].concat().into()
+    }
+}
+#[cfg(feature = "read")]
+impl<'a> crate::parser::Read for Vec<TLV<'a>> {
+    type Error = ();
+
+    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+        let mut tlvs = alloc::vec![]; // Evil allocation.
+        while let Ok(tlv) = TLV::from_bytes(data) {
+            tlvs.push(tlv);
+        }
+        Ok(tlvs)
+    }
+}
+#[cfg(feature = "write")]
+impl<'a> crate::parser::Write<'a> for Vec<TLV<'a>> {
+    fn to_bytes(&self) -> Cow<'a, [u8]> {
+        use alloc::borrow::ToOwned;
+        Cow::Owned(
+            self.iter()
+                .map(|x| x.to_bytes())
+                .collect::<Vec<Cow<[u8]>>>()
+                .concat()
+                .as_slice()
+                .to_owned(),
+        )
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_tlv() {
+    use crate::parser::{Read, Write};
+    use alloc::borrow::ToOwned;
+    let bytes = &[0x04, 0x05, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff];
+    let tlv = TLV::from_bytes(&mut bytes.into_iter().map(|x| *x)).unwrap();
+    assert_eq!(
+        tlv,
+        TLV {
+            tlv_type: TLVType::SynchronizationParameters,
+            tlv_data: Cow::Owned([0xff; 5].as_slice().to_owned())
+        }
+    );
+    assert_eq!(tlv.to_bytes(), bytes.as_slice().to_owned());
+}
+#[cfg(feature = "read")]
+#[derive(Debug)]
+pub enum FromTLVError {
+    IncorrectTlvType,
+    IncorrectTlvLength,
+    NoData,
+    ParserError(crate::parser::ParserError),
+}
+macro_rules! impl_tlv_conversion_fixed {
+    ($ntype:ty, $tlv_type:expr, $tlv_length:expr) => {
         #[cfg(feature = "write")]
-        use super::{TLVType, TLV};
-        #[cfg(feature = "write")]
-        impl Into<TLV> for $type_name {
-            fn into(self) -> TLV {
-                let bytes = self.to_bytes().unwrap();
-                TLV {
+        impl From<$ntype> for super::TLV<'_> {
+            fn from(value: $ntype) -> Self {
+                use crate::parser::WriteFixed;
+                use alloc::borrow::ToOwned;
+                Self {
                     tlv_type: $tlv_type,
-                    tlv_length: bytes.len() as u16,
-                    tlv_data: bytes,
+                    tlv_data: alloc::borrow::Cow::Owned(value.to_bytes().as_slice().to_owned()),
                 }
+            }
+        }
+
+        #[cfg(feature = "read")]
+        impl TryFrom<super::TLV<'_>> for $ntype {
+            type Error = super::FromTLVError;
+            fn try_from(value: super::TLV<'_>) -> Result<Self, Self::Error> {
+                use crate::parser::ReadFixed;
+                if value.tlv_data.len() < $tlv_length {
+                    return Err(crate::action_frame::tlv::FromTLVError::IncorrectTlvLength);
+                }
+                if value.tlv_type != $tlv_type {
+                    return Err(crate::action_frame::tlv::FromTLVError::IncorrectTlvType);
+                }
+                Self::from_bytes(&value.tlv_data.iter().map(|x| *x).next_chunk().unwrap())
+                    .map_err(|e| crate::action_frame::tlv::FromTLVError::ParserError(e))
             }
         }
     };
 }
 
-#[cfg_attr(feature = "read", derive(DekuRead))]
-#[cfg_attr(feature = "write", derive(DekuWrite))]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, PartialEq, Eq)]
-/// A **T**ype **L**ength **V**alue structure.
-pub struct TLV {
-    /// The type.
-    pub tlv_type: TLVType,
-
-    /// The length.
-    #[deku(update = "self.tlv_data.len()")]
-    pub tlv_length: u16,
-
-    /// The data contained within the TLV.
-    #[deku(count = "tlv_length")]
-    pub tlv_data: Vec<u8>,
-}
-#[cfg(all(
-    feature = "read",
-    any(
-        feature = "version_tlv",
-        feature = "dns_sd_tlvs",
-        feature = "sync_elect_tlvs",
-        feature = "data_tlvs"
-    )
-))]
-impl TLV {
-    #[cfg(feature = "version_tlv")]
-    as_tlv_structure! {as_version, VersionTLV}
-    #[cfg(feature = "dns_sd_tlvs")]
-    as_tlv_structure! {as_arpa, ArpaTLV}
-    #[cfg(feature = "sync_elect_tlvs")]
-    as_tlv_structure! {as_chan_seq, ChannelSequenceTLV}
-}
-
 #[cfg(feature = "version_tlv")]
 pub mod version {
-    use deku::prelude::*;
+    use crate::{action_frame::version::AWDLVersion, enum_to_int};
 
-    use crate::action_frame::version::AWDLVersion;
+    use super::TLVType;
 
-    #[cfg(all(not(feature = "std"), feature = "read"))]
-    use alloc::format;
-    #[cfg(all(not(feature = "std"), feature = "write"))]
-    use alloc::vec::Vec;
-
-    #[cfg_attr(feature = "read", derive(DekuRead))]
-    #[cfg_attr(feature = "write", derive(DekuWrite))]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Default, Clone, Copy, PartialEq, Eq)]
-    #[deku(type = "u8")]
     /// The device class of the peer.
     pub enum AWDLDeviceClass {
         /// A macOS X device.
         #[default]
-        #[deku(id = "0x01")]
         MacOS,
 
         /// A iOS or watchOS device.
-        #[deku(id = "0x02")]
         IOSWatchOS,
 
         /// A tvOS device.
-        #[deku(id = "0x03")]
         TVOS,
 
         /// A device of unknown type.
-        #[deku(id_pat = "_")]
         Unknown(u8),
     }
+    enum_to_int! {
+        u8,
+        AWDLDeviceClass,
 
-    #[cfg_attr(feature = "read", derive(DekuRead))]
-    #[cfg_attr(feature = "write", derive(DekuWrite))]
+        0x01,
+        AWDLDeviceClass::MacOS,
+        0x02,
+        AWDLDeviceClass::IOSWatchOS,
+        0x03,
+        AWDLDeviceClass::TVOS
+    }
+
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, Copy, PartialEq, Eq)]
     /// A TLV containing the actual version of the AWDL protocol.
@@ -178,42 +244,55 @@ pub mod version {
         /// The device class.
         pub device_class: AWDLDeviceClass,
     }
-    into_tlv!(VersionTLV, TLVType::Version);
+    impl_tlv_conversion_fixed!(VersionTLV, TLVType::Version, 2);
+    #[cfg(feature = "read")]
+    impl crate::parser::ReadFixed<2> for VersionTLV {
+        type Error = crate::parser::ParserError;
+        fn from_bytes(data: &[u8; 2]) -> Result<Self, Self::Error> {
+            let mut data = data.iter().copied();
+            Ok(Self {
+                version: AWDLVersion::from_bytes(&data.next_chunk().unwrap()).unwrap(),
+                device_class: data.next().unwrap().into(),
+            })
+        }
+    }
+    #[cfg(feature = "write")]
+    impl crate::parser::WriteFixed<2> for VersionTLV {
+        fn to_bytes(&self) -> [u8; 2] {
+            [self.version.to_bytes()[0], self.device_class.into()]
+        }
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn test_version_tlv() {
+        use super::TLV;
+        use crate::parser::{Read, WriteFixed};
+
+        let bytes = include_bytes!("../../test_bins/version_tlv.bin");
+
+        let tlv = TLV::from_bytes(&mut bytes.iter().map(|x| *x)).unwrap();
+
+        let version_tlv = VersionTLV::try_from(tlv.clone()).unwrap();
+        assert_eq!(tlv, <VersionTLV as Into<TLV>>::into(version_tlv));
+
+        assert_eq!(
+            version_tlv,
+            VersionTLV {
+                version: AWDLVersion { major: 3, minor: 4 },
+                device_class: AWDLDeviceClass::MacOS,
+            }
+        );
+        assert_eq!(version_tlv.to_bytes(), bytes[3..]);
+    }
 }
 #[cfg(feature = "dns_sd_tlvs")]
 pub mod dns_sd {
-    use deku::{bitvec::Msb0, prelude::*};
-
     use crate::action_frame::dns_compression::AWDLDnsCompression;
-    #[cfg(all(not(feature = "std"), feature = "write"))]
-    use alloc::{vec::Vec};
-    #[cfg(all(not(feature = "std"), feature = "read"))]
-    use alloc::{format, string::String};
-    #[cfg(not(feature = "std"))]
-    use alloc::borrow::Cow;
-    #[cfg(feature = "std")]
-    use std::borrow::Cow;
+    use alloc::{borrow::Cow, str};
 
-    #[cfg(feature = "write")]
-    use deku::bitvec::BitVec;
-    #[cfg(feature = "read")]
-    use deku::{bitvec::BitSlice, ctx::Endian};
+    use super::TLVType;
 
-    #[cfg(feature = "read")]
-    fn read_string(
-        rest: &BitSlice<u8, Msb0>,
-        len: usize,
-    ) -> Result<(&BitSlice<u8, Msb0>, Cow<'_, str>), DekuError> {
-        let (rest, string) = <&[u8]>::read(&rest, (len.into(), Endian::Little))?;
-        Ok((rest, String::from_utf8_lossy(string)))
-    }
-    #[cfg(feature = "write")]
-    fn write_string(output: &mut BitVec<u8, Msb0>, string: &str) -> Result<(), DekuError> {
-        string.as_bytes().write(output, ())
-    }
-
-    #[cfg_attr(feature = "read", derive(DekuRead))]
-    #[cfg_attr(feature = "write", derive(DekuWrite))]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, Default, PartialEq, Eq)]
     /// A hostname combined with the [domain](AWDLDnsCompression).
@@ -221,20 +300,61 @@ pub mod dns_sd {
         /// An unknown random prefix byte before the host.
         pub unknown: u8,
 
-        /// An unknown random prefix byte before the host.
-        #[deku(
-            reader = "read_string(deku::rest, (deku::rest.len() / 8) - 2)",
-            writer = "write_string(deku::output, &self.host)"
-        )]
         /// The hostname of the peer.
         pub host: Cow<'a, str>,
 
         /// The domain in [compressed form](AWDLDnsCompression).
         pub domain: AWDLDnsCompression,
     }
+    #[cfg(feature = "read")]
+    impl crate::parser::Read for Hostname<'_> {
+        type Error = crate::parser::ParserError;
 
-    #[cfg_attr(feature = "read", derive(DekuRead))]
-    #[cfg_attr(feature = "write", derive(DekuWrite))]
+        fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+            #[cfg(not(feature = "std"))]
+            use alloc::string::String;
+
+            if data.len() < 3 {
+                return Err(crate::parser::ParserError::TooLittleData(3 - data.len()));
+            }
+            let unknown = data.next().unwrap();
+            let binding = (0..(data.len() - 2))
+                .map(|_| data.next().unwrap())
+                .collect::<Cow<[u8]>>();
+            let host = match binding {
+                Cow::Borrowed(bytes) => match str::from_utf8(bytes) {
+                    Ok(str_ref) => Cow::Borrowed(str_ref),
+                    Err(_) => Cow::Owned(String::from_utf8_lossy(bytes).into_owned()),
+                },
+                Cow::Owned(bytes) => match String::from_utf8(bytes) {
+                    Ok(string) => Cow::Owned(string),
+                    Err(err) => Cow::Owned(
+                        err.into_bytes()
+                            .into_iter()
+                            .map(|b| b as char)
+                            .collect::<String>(),
+                    ),
+                },
+            };
+            let domain = u16::from_le_bytes(data.next_chunk().unwrap()).into();
+
+            Ok(Self {
+                unknown,
+                host,
+                domain,
+            })
+        }
+    }
+    #[cfg(feature = "write")]
+    impl<'a> crate::parser::Write<'a> for Hostname<'a> {
+        fn to_bytes(&self) -> Cow<'a, [u8]> {
+            let host = self.host.as_bytes();
+            let binding = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_le_bytes();
+            let domain = binding.as_slice();
+            [[self.unknown].as_slice(), host, domain].concat().into()
+        }
+    }
+
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, Default, PartialEq, Eq)]
     /// A TLV containing the hostname of the peer. Used for reverse DNS.
@@ -245,30 +365,91 @@ pub mod dns_sd {
         /// The actual arpa data.
         pub arpa: Hostname<'a>,
     }
-    into_tlv!(ArpaTLV<'_>, TLVType::Arpa);
+    #[cfg(feature = "read")]
+    impl<'a> crate::parser::Read for ArpaTLV<'a> {
+        type Error = crate::parser::ParserError;
+
+        fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+            if data.len() < 4 {
+                return Err(crate::parser::ParserError::TooLittleData(data.len() - 4));
+            }
+            let flags = data.next().unwrap();
+            let arpa = Hostname::from_bytes(data)?;
+            Ok(Self { flags, arpa })
+        }
+    }
+    #[cfg(feature = "write")]
+    impl<'a> crate::parser::Write<'a> for ArpaTLV<'a> {
+        fn to_bytes(&self) -> Cow<'a, [u8]> {
+            [[self.flags].as_slice(), &self.arpa.to_bytes()]
+                .concat()
+                .into()
+        }
+    }
+    #[cfg(feature = "write")]
+    impl<'a> From<ArpaTLV<'a>> for super::TLV<'a> {
+        fn from(value: ArpaTLV<'a>) -> Self {
+            use crate::parser::Write;
+
+            Self {
+                tlv_type: TLVType::Arpa,
+                tlv_data: value.to_bytes(),
+            }
+        }
+    }
+    #[cfg(feature = "read")]
+    impl<'a> TryFrom<super::TLV<'a>> for ArpaTLV<'a> {
+        type Error = super::FromTLVError;
+        fn try_from(value: super::TLV<'a>) -> Result<Self, Self::Error> {
+            use crate::parser::Read;
+
+            if value.tlv_data.len() < 4 {
+                return Err(crate::action_frame::tlv::FromTLVError::IncorrectTlvLength);
+            }
+            if value.tlv_type != TLVType::Arpa {
+                return Err(crate::action_frame::tlv::FromTLVError::IncorrectTlvType);
+            }
+            Self::from_bytes(&mut value.tlv_data.iter().copied())
+                .map_err(crate::action_frame::tlv::FromTLVError::ParserError)
+        }
+    }
+    #[cfg(test)]
+    #[test]
+    fn test_arpa_tlv() {
+        use super::TLV;
+        use crate::parser::{Read, Write};
+
+        let bytes = include_bytes!("../../test_bins/arpa_tlv.bin");
+
+        let tlv = TLV::from_bytes(&mut bytes.iter().map(|x| *x)).unwrap();
+
+        let arpa_tlv = ArpaTLV::try_from(tlv.clone()).unwrap();
+        assert_eq!(tlv, <ArpaTLV as Into<TLV>>::into(arpa_tlv.clone()));
+
+        assert_eq!(
+            arpa_tlv,
+            ArpaTLV {
+                flags: 0x03,
+                arpa: Hostname {
+                    unknown: 0x0f,
+                    host: "simon-framework".into(), // My hostname so calm down.
+                    domain: AWDLDnsCompression::Local
+                }
+            }
+        );
+
+        assert_eq!(arpa_tlv.to_bytes(), &bytes[3..]);
+    }
 }
 #[cfg(feature = "sync_elect_tlvs")]
 pub mod sync_elect {
-    use deku::{
-        prelude::*,
-    };
+    use crate::action_frame::channel::{ChannelEncoding, ChannelSequence};
 
-    #[cfg(not(feature = "std"))]
-    use alloc::{format, vec::Vec};
-    #[cfg(all(not(feature = "std"), feature = "read"))]
-    use alloc::vec;
+    use super::{TLVType, TLV};
 
-    use crate::action_frame::channel::{Channel, ChannelEncoding};
-
-    #[cfg_attr(feature = "read", derive(DekuRead))]
-    #[cfg_attr(feature = "write", derive(DekuWrite))]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, PartialEq, Eq)]
     pub struct ChannelSequenceTLV {
-        /// The number of channels minus one.
-        #[deku(update = "self.channels.len()-1")]
-        pub channel_count: u8,
-
         /// The channel encoding.
         pub channel_encoding: ChannelEncoding,
 
@@ -282,76 +463,143 @@ pub mod sync_elect {
         pub fill_channel: u16,
 
         /// The channels.
-        #[deku(
-            reader = "Self::read_channels(deku::rest, channel_encoding, &(channel_count + 1))",
-            pad_bytes_after = "3"
-        )]
-        pub channels: Vec<Channel>,
+        pub channel_sequence: ChannelSequence,
     }
-    impl ChannelSequenceTLV {
-        #[cfg(feature = "read")]
-        fn read_channels<'a>(
-            rest: &'a deku::bitvec::BitSlice<u8, deku::bitvec::Msb0>,
-            channel_encoding: &ChannelEncoding,
-            channel_count: &u8,
-        ) -> Result<(&'a deku::bitvec::BitSlice<u8, deku::bitvec::Msb0>, Vec<Channel>), DekuError> {
-            let mut channels = vec![Channel::Simple(0xff); *channel_count as usize];
-            let mut rest = rest;
-            for channel in channels.iter_mut() {
-                (rest, *channel) = Channel::read(rest, channel_encoding)?;
-            }
-            Ok((rest, channels))
+    type ChannelSequenceHeader = (u8, ChannelEncoding, u8, u8, u16);
+
+    #[cfg(feature = "read")]
+    impl crate::parser::ReadFixed<6> for ChannelSequenceHeader {
+        type Error = crate::parser::ParserError;
+        fn from_bytes(data: &[u8; 6]) -> Result<Self, Self::Error> {
+            let mut data = data.iter().copied();
+
+            let channel_count = data.next().unwrap() + 1; // Don't ask.
+            let channel_encoding = data.next().unwrap().into();
+            let duplicate_count = data.next().unwrap();
+            let step_count = data.next().unwrap() + 1;
+            let fill_channels = u16::from_le_bytes(data.next_chunk().unwrap());
+            Ok((
+                channel_count,
+                channel_encoding,
+                duplicate_count,
+                step_count,
+                fill_channels,
+            ))
         }
     }
-    into_tlv!(ChannelSequenceTLV, TLVType::ChannelSequence);
-}
-
-#[cfg(test)]
-mod tests {
-    #[cfg(not(feature = "std"))]
-    use alloc::vec;
-
-    use deku::DekuContainerWrite;
-
-    use crate::action_frame::tlv::{TLVType, TLV};
-
-    use super::{sync_elect::ChannelSequenceTLV, version::VersionTLV, ArpaTLV};
-
-    macro_rules! test_tlv {
-        ($type_name:ty, $tlv_type:expr, $test_name:ident, $bytes:expr) => {
-            #[test]
-            fn $test_name() {
-                let bytes = $bytes;
-                let tlv = <$type_name>::try_from(bytes.as_ref()).unwrap();
-                assert_eq!(tlv.to_bytes().unwrap(), bytes);
-                assert_eq!(
-                    <$type_name as Into<TLV>>::into(tlv),
-                    TLV {
-                        tlv_type: $tlv_type,
-                        tlv_length: bytes.len() as u16,
-                        tlv_data: bytes,
-                    }
-                );
-            }
-        };
+    #[cfg(feature = "write")]
+    impl crate::parser::WriteFixed<6> for ChannelSequenceHeader {
+        fn to_bytes(&self) -> [u8; 6] {
+            let channel_encoding = self.1.into();
+            let fill_channel = self.4.to_le_bytes();
+            [
+                self.0 - 1,
+                channel_encoding,
+                self.2,
+                self.3 - 1,
+                fill_channel[0],
+                fill_channel[1],
+            ]
+        }
     }
+    #[cfg(feature = "read")]
+    impl crate::parser::Read for ChannelSequenceTLV {
+        type Error = crate::parser::ParserError;
+        fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+            use crate::parser::{ParserError, ReadCtx, ReadFixed};
+            if data.len() < 9 {
+                return Err(ParserError::TooLittleData(6 - data.len()));
+            }
+            let (channel_count, channel_encoding, duplicate_count, step_count, fill_channel) =
+                ChannelSequenceHeader::from_bytes(&data.next_chunk().unwrap()).unwrap();
+            let channel_sequence =
+                ChannelSequence::from_bytes(data, (&channel_count, &channel_encoding)).unwrap();
+            let _ = data.next_chunk::<3>(); // Discard padding.
+            Ok(Self {
+                channel_encoding,
+                duplicate_count,
+                step_count,
+                fill_channel,
+                channel_sequence,
+            })
+        }
+    }
+    #[cfg(feature = "write")]
+    impl<'a> crate::parser::Write<'a> for ChannelSequenceTLV {
+        fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+            use crate::parser::WriteFixed;
 
-    test_tlv!(
-        ArpaTLV,
-        TLVType::Arpa,
-        test_arpa,
-        include_bytes!("../../test_bins/arpa_tlv.bin")[3..].to_vec()
-    );
-    test_tlv!(
-        VersionTLV,
-        TLVType::Version,
-        test_version,
-        include_bytes!("../../test_bins/version_tlv.bin")[3..].to_vec()
-    );
-    test_tlv!(
-        ChannelSequenceTLV,
-        TLVType::ChannelSequence,
-        test_channel_seq,
-        include_bytes!("../../test_bins/channel_sequence_tlv.bin")[3..].to_vec()
-    );
+            let binding = (
+                self.channel_sequence.len() as u8,
+                self.channel_encoding,
+                self.duplicate_count,
+                self.step_count,
+                self.fill_channel,
+            )
+                .to_bytes();
+            let header = binding.iter();
+            let binding = self.channel_sequence.to_bytes();
+            let channel_sequence = binding.iter();
+            let padding = [0; 3].iter();
+            header
+                .chain(channel_sequence.chain(padding))
+                .copied()
+                .collect()
+        }
+    }
+    impl From<ChannelSequenceTLV> for TLV<'_> {
+        fn from(value: ChannelSequenceTLV) -> Self {
+            use crate::parser::Write;
+            Self {
+                tlv_type: TLVType::ChannelSequence,
+                tlv_data: value.to_bytes(),
+            }
+        }
+    }
+    impl TryFrom<TLV<'_>> for ChannelSequenceTLV {
+        type Error = crate::action_frame::tlv::FromTLVError;
+        fn try_from(value: TLV) -> Result<Self, Self::Error> {
+            use crate::{action_frame::tlv::FromTLVError, parser::Read};
+
+            if value.tlv_data.len() < 9 {
+                return Err(FromTLVError::IncorrectTlvLength);
+            }
+            if value.tlv_type != TLVType::ChannelSequence {
+                return Err(FromTLVError::IncorrectTlvType);
+            }
+            Self::from_bytes(&mut value.tlv_data.iter().copied()).map_err(FromTLVError::ParserError)
+        }
+    }
+    #[cfg(test)]
+    #[test]
+    fn test_channel_sequence_tlv() {
+        use super::TLV;
+        use crate::{
+            action_frame::channel::{fixed_channel_sequence, Channel},
+            parser::{Read, Write},
+        };
+
+        let bytes = include_bytes!("../../test_bins/channel_sequence_tlv.bin");
+
+        let tlv = TLV::from_bytes(&mut bytes.iter().map(|x| *x)).unwrap();
+
+        let channel_sequence_tlv = ChannelSequenceTLV::try_from(tlv.clone()).unwrap();
+        assert_eq!(
+            tlv,
+            <ChannelSequenceTLV as Into<TLV>>::into(channel_sequence_tlv.clone())
+        );
+
+        assert_eq!(
+            channel_sequence_tlv,
+            ChannelSequenceTLV {
+                channel_encoding: ChannelEncoding::OpClass,
+                duplicate_count: 0,
+                step_count: 4,
+                fill_channel: 0xffff,
+                channel_sequence: fixed_channel_sequence(Channel::OpClass(0x6, 0x51)),
+            }
+        );
+
+        assert_eq!(channel_sequence_tlv.to_bytes(), &bytes[3..]);
+    }
 }

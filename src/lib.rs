@@ -1,40 +1,12 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-#[cfg(not(feature = "std"))]
+#![feature(iter_array_chunks)]
+#![feature(iter_next_chunk)]
+#![feature(exact_size_is_empty)]
+#![feature(more_qualified_paths)]
+#![feature(array_chunks)]
+#![no_std]
+
 extern crate alloc;
 
 /// Structures related to AWDL action frames.
 pub mod action_frame;
-pub use deku;
-
-#[cfg(test)]
-mod tests {
-
-    #[cfg(not(feature = "std"))]
-    use alloc::vec;
-
-    use deku::DekuContainerWrite;
-
-    use crate::action_frame::{tlv::TLV, AWDLActionFrame};
-
-    #[test]
-    fn test_tlv() {
-        let tlv_bytes = vec![
-            0x04, 0x49, 0x00, 0x06, 0x20, 0x00, 0x06, 0x00, 0x10, 0x00, 0x6e, 0x00, 0x00, 0x18,
-            0x10, 0x00, 0x10, 0x00, 0x00, 0x00, 0x03, 0x03, 0x03, 0x03, 0x3a, 0xb4, 0x08, 0x6e,
-            0x66, 0x3d, 0x04, 0x00, 0xca, 0x0e, 0xca, 0x0e, 0x0f, 0x03, 0x00, 0x03, 0xff, 0xff,
-            0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51,
-            0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51, 0x06, 0x51,
-            0x06, 0x51, 0x06, 0x51, 0x00, 0x00,
-        ];
-        let tlv = TLV::try_from(tlv_bytes.as_ref()).unwrap();
-        assert_eq!(tlv.to_bytes().unwrap(), tlv_bytes);
-    }
-    #[test]
-    fn test_action_frame() {
-        let packet_bytes = include_bytes!("../test_bins/mif.bin").to_vec();
-
-        let frame = AWDLActionFrame::try_from(packet_bytes.as_ref()).unwrap();
-
-        assert_eq!(frame.to_bytes().unwrap(), packet_bytes);
-    }
-}
+pub mod parser;
