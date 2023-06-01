@@ -605,17 +605,24 @@ pub mod sync_elect {
 
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, PartialEq, Eq)]
+    /// A TLV describing the election parameters of a peer.
     pub struct ElectionParametersTLV {
+        /// Unknown
         pub flags: u8,
 
+        /// Unknown
         pub id: u16,
 
+        /// Distance to the mesh master
         pub distance_to_master: u8,
 
+        /// Address of the master
         pub master_address: [u8; 6],
 
+        /// Self metric of the master
         pub master_metric: u32,
 
+        /// Own self metric
         pub self_metric: u32,
     }
     #[cfg(feature = "read")]
@@ -637,7 +644,7 @@ pub mod sync_elect {
                 distance_to_master,
                 master_address,
                 master_metric,
-                self_metric
+                self_metric,
             })
         }
     }
@@ -655,14 +662,12 @@ pub mod sync_elect {
         }
     }
     impl_tlv_conversion_fixed!(ElectionParametersTLV, TLVType::ElectionParameters, 21);
-    
+
     #[cfg(test)]
     #[test]
     fn test_election_parameters_tlv() {
         use super::TLV;
-        use crate::{
-            parser::{Read, WriteFixed},
-        };
+        use crate::parser::{Read, WriteFixed};
 
         let bytes = include_bytes!("../../test_bins/election_parameters_tlv.bin");
 
@@ -687,5 +692,104 @@ pub mod sync_elect {
         );
 
         assert_eq!(election_parameters_tlv.to_bytes(), bytes[3..]);
+    }
+
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, PartialEq, Eq)]
+    /// Another TLV describing the election parameters of the peer.
+    pub struct ElectionParametersV2TLV {
+        /// MAC address of the master
+        pub master_address: [u8; 6],
+
+        /// MAC address of the peer this peer is syncing to
+        pub sync_address: [u8; 6],
+
+        /// Counter value of the master
+        pub master_counter: u32,
+
+        /// Distance to the current master
+        pub distance_to_master: u32,
+
+        /// Metric of the master
+        pub master_metric: u32,
+
+        /// Self metric of the peer
+        pub self_metric: u32,
+
+        /// Self counter of the peer
+        pub self_counter: u32,
+    }
+    #[cfg(feature = "read")]
+    impl crate::parser::ReadFixed<40> for ElectionParametersV2TLV {
+        type Error = crate::parser::ParserError;
+
+        fn from_bytes(data: &[u8; 40]) -> Result<Self, Self::Error> {
+            let mut data = data.iter().copied();
+            let master_address = data.next_chunk().unwrap();
+            let sync_address = data.next_chunk().unwrap();
+            let master_counter = u32::from_le_bytes(data.next_chunk().unwrap());
+            let distance_to_master = u32::from_le_bytes(data.next_chunk().unwrap());
+            let master_metric = u32::from_le_bytes(data.next_chunk().unwrap());
+            let self_metric = u32::from_le_bytes(data.next_chunk().unwrap());
+            let _ = data.next_chunk::<8>();
+            let self_counter = u32::from_le_bytes(data.next_chunk().unwrap());
+
+            Ok(Self {
+                master_address,
+                sync_address,
+                master_counter,
+                distance_to_master,
+                master_metric,
+                self_metric,
+                self_counter,
+            })
+        }
+    }
+    #[cfg(feature = "write")]
+    impl crate::parser::WriteFixed<40> for ElectionParametersV2TLV {
+        fn to_bytes(&self) -> [u8; 40] {
+            let mut bytes = [0x00; 40];
+            bytes[0..6].copy_from_slice(&self.master_address);
+            bytes[6..12].copy_from_slice(&self.sync_address);
+            bytes[12..16].copy_from_slice(&self.master_counter.to_le_bytes());
+            bytes[16..20].copy_from_slice(&self.distance_to_master.to_le_bytes());
+            bytes[20..24].copy_from_slice(&self.master_metric.to_le_bytes());
+            bytes[24..28].copy_from_slice(&self.self_metric.to_le_bytes());
+            bytes[36..40].copy_from_slice(&self.self_counter.to_le_bytes());
+
+            bytes
+        }
+    }
+    impl_tlv_conversion_fixed!(ElectionParametersV2TLV, TLVType::ElectionParametersV2, 40);
+    #[cfg(test)]
+    #[test]
+    fn test_election_parameters_v2_tlv() {
+        use super::TLV;
+        use crate::parser::{Read, WriteFixed};
+
+        let bytes = include_bytes!("../../test_bins/election_parameters_v2_tlv.bin");
+
+        let tlv = TLV::from_bytes(&mut bytes.iter().map(|x| *x)).unwrap();
+
+        let election_parameters_v2_tlv = ElectionParametersV2TLV::try_from(tlv.clone()).unwrap();
+        assert_eq!(
+            tlv,
+            <ElectionParametersV2TLV as Into<TLV>>::into(election_parameters_v2_tlv.clone())
+        );
+
+        assert_eq!(
+            election_parameters_v2_tlv,
+            ElectionParametersV2TLV {
+                master_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22],
+                sync_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22],
+                master_counter: 960,
+                distance_to_master: 1,
+                master_metric: 650,
+                self_metric: 650,
+                self_counter: 30,
+            }
+        );
+
+        assert_eq!(election_parameters_v2_tlv.to_bytes(), bytes[3..]);
     }
 }
