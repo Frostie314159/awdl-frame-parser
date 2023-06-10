@@ -1,7 +1,11 @@
 use awdl_frame_parser::{
     action_frame::{
         channel::{Channel, ChannelEncoding},
-        tlv::{dns_sd::ArpaTLV, sync_elect::ChannelSequenceTLV, TLVType, TLV},
+        tlv::{
+            dns_sd::{ArpaTLV, ServiceResponseTLV},
+            sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
+            TLVType, TLV,
+        },
         AWDLActionFrame,
     },
     parser::{Read, ReadCtx, Write},
@@ -59,6 +63,10 @@ bench_read!(bench_read_channel_sequence_tlv, ChannelSequenceTLV);
 bench_write!(bench_write_channel_sequence_tlv, ChannelSequenceTLV);
 bench_read!(bench_read_channel, Channel, ChannelEncoding);
 bench_write!(bench_write_channel, Channel);
+bench_read!(bench_read_service_response_tlv, ServiceResponseTLV);
+bench_write!(bench_write_service_response_tlv, ServiceResponseTLV);
+bench_read!(bench_read_sync_tree_tlv, SyncTreeTLV);
+bench_write!(bench_write_sync_tree_tlv, SyncTreeTLV);
 
 fn criterion_benchmark(c: &mut Criterion) {
     let af_bytes = include_bytes!("../test_bins/mif.bin").to_vec();
@@ -71,6 +79,23 @@ fn criterion_benchmark(c: &mut Criterion) {
     register_bench_fn!(c, bench_read_tlv, tlv_bytes.clone());
     let tlv = TLV::from_bytes(&mut tlv_bytes.clone().into_iter()).unwrap();
     register_bench_fn!(c, bench_write_tlv, &tlv);
+
+    let sync_tree_tlv_bytes = include_bytes!("../test_bins/sync_tree_tlv.bin")[3..].to_vec();
+    register_bench_fn!(c, bench_read_sync_tree_tlv, sync_tree_tlv_bytes.clone());
+    let sync_tree = SyncTreeTLV::from_bytes(&mut sync_tree_tlv_bytes.clone().into_iter()).unwrap();
+    register_bench_fn!(c, bench_write_sync_tree_tlv, &sync_tree);
+
+    let service_response_tlv_bytes =
+        include_bytes!("../test_bins/service_response_tlv_txt.bin")[3..].to_vec();
+    register_bench_fn!(
+        c,
+        bench_read_service_response_tlv,
+        service_response_tlv_bytes.clone()
+    );
+    let service_response =
+        ServiceResponseTLV::from_bytes(&mut service_response_tlv_bytes.clone().into_iter())
+            .unwrap();
+    register_bench_fn!(c, bench_write_service_response_tlv, &service_response);
 
     let arpa_tlv_bytes = include_bytes!("../test_bins/arpa_tlv.bin")[3..].to_vec();
     register_bench_fn!(c, bench_read_arpa_tlv, arpa_tlv_bytes.clone());

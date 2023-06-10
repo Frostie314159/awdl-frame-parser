@@ -1,4 +1,11 @@
 use crate::enum_to_int;
+#[cfg(feature = "read")]
+use crate::parser::{ParserError, ReadCtx};
+#[cfg(feature = "write")]
+use {
+    crate::parser::Write,
+    alloc::borrow::{Cow, ToOwned},
+};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -54,14 +61,11 @@ impl From<Channel> for ChannelEncoding {
     }
 }
 #[cfg(feature = "read")]
-impl crate::parser::ReadCtx<&ChannelEncoding> for Channel {
-    type Error = crate::parser::ParserError;
-
+impl ReadCtx<&ChannelEncoding> for Channel {
     fn from_bytes(
         data: &mut impl ExactSizeIterator<Item = u8>,
         ctx: &ChannelEncoding,
-    ) -> Result<Self, Self::Error> {
-        use crate::parser::ParserError;
+    ) -> Result<Self, ParserError> {
         Ok(match ctx {
             ChannelEncoding::Simple => {
                 Self::Simple(data.next().ok_or(ParserError::TooLittleData(1))?)
@@ -84,9 +88,8 @@ impl crate::parser::ReadCtx<&ChannelEncoding> for Channel {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> crate::parser::Write<'a> for Channel {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        use alloc::borrow::ToOwned;
+impl<'a> Write<'a> for Channel {
+    fn to_bytes(&self) -> Cow<'a, [u8]> {
         alloc::borrow::Cow::Owned(match self {
             Channel::Simple(channel) => [*channel].as_slice().to_owned(),
             Channel::Legacy(flags, channel) => [*flags, *channel].as_slice().to_owned(),
@@ -101,16 +104,12 @@ pub type ChannelSequence = [Channel; 16];
 pub type ChannelSequence = alloc::vec::Vec<Channel>;
 
 #[cfg(feature = "read")]
-impl crate::parser::ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
-    type Error = crate::parser::ParserError;
-
+impl ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
     #[cfg(feature = "fixed_chan_seq")]
     fn from_bytes(
         data: &mut impl ExactSizeIterator<Item = u8>,
         ctx: (&u8, &ChannelEncoding),
-    ) -> Result<Self, Self::Error> {
-        use crate::parser::ParserError;
-
+    ) -> Result<Self, crate::parser::ParserError> {
         fn parse_2byte_channel<F: Fn(u8, u8) -> Channel>(
             data: &mut impl ExactSizeIterator<Item = u8>,
             f: F,
@@ -139,9 +138,7 @@ impl crate::parser::ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
     fn from_bytes(
         data: &mut impl ExactSizeIterator<Item = u8>,
         ctx: (&u8, &ChannelEncoding),
-    ) -> Result<Self, Self::Error> {
-        use crate::parser::ParserError;
-
+    ) -> Result<Self, ParserError> {
         let expected_length = ctx.0 * ctx.1.size();
         if data.len() < expected_length.into() {
             return Err(ParserError::TooLittleData(
@@ -155,11 +152,9 @@ impl crate::parser::ReadCtx<(&u8, &ChannelEncoding)> for ChannelSequence {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> crate::parser::Write<'a> for ChannelSequence {
+impl<'a> Write<'a> for ChannelSequence {
     #[cfg(feature = "fixed_chan_seq")]
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        use alloc::borrow::ToOwned;
-
         match self[0].into() {
             ChannelEncoding::Simple => self.map(|x| x.to_bytes()[0]).as_slice().to_owned().into(),
             _ => {
@@ -175,10 +170,14 @@ impl<'a> crate::parser::Write<'a> for ChannelSequence {
     }
     #[cfg(not(feature = "fixed_chan_seq"))]
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        use alloc::borrow::ToOwned;
-
         match self[0].into() {
-            ChannelEncoding::Simple => self.map(|x| x.to_bytes()[0]).as_slice().to_owned().into(),
+            ChannelEncoding::Simple => self
+                .iter()
+                .map(|x| x.to_bytes()[0])
+                .collect::<alloc::vec::Vec<_>>()
+                .as_slice()
+                .to_owned()
+                .into(),
             _ => self
                 .iter()
                 .copied()

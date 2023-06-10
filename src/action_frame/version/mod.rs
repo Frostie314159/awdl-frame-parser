@@ -1,3 +1,4 @@
+#[cfg(feature = "debug")]
 use core::fmt::Debug;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -28,9 +29,7 @@ impl Debug for AWDLVersion {
 }
 #[cfg(feature = "read")]
 impl crate::parser::ReadFixed<1> for AWDLVersion {
-    type Error = ();
-
-    fn from_bytes(data: &[u8; 1]) -> Result<Self, Self::Error> {
+    fn from_bytes(data: &[u8; 1]) -> Result<Self, crate::parser::ParserError> {
         Ok(Self {
             major: (data[0] >> 4) & 0xf,
             minor: data[0] & 0xf,

@@ -1,5 +1,3 @@
-use core::fmt::Debug;
-
 use self::tlv::TLVType;
 
 use alloc::vec::Vec;
@@ -7,6 +5,8 @@ use alloc::vec::Vec;
 use crate::enum_to_int;
 
 use self::{tlv::TLV, version::AWDLVersion};
+#[cfg(feature = "debug")]
+use core::fmt::Debug;
 
 pub mod channel;
 pub mod dns_compression;
@@ -74,11 +74,12 @@ impl AWDLActionFrame<'_> {
 }
 #[cfg(feature = "read")]
 impl<'a> crate::parser::Read for AWDLActionFrame<'a> {
-    type Error = crate::parser::ParserError;
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, Self::Error> {
+    fn from_bytes(
+        data: &mut impl ExactSizeIterator<Item = u8>,
+    ) -> Result<Self, crate::parser::ParserError> {
         use crate::parser::{ParserError, ReadFixed};
         if data.len() < 12 {
-            return Err(ParserError::HeaderIncomplete((12 - data.len()) as u8));
+            return Err(ParserError::HeaderIncomplete(12 - data.len()));
         }
 
         // Using unwrap is ok now, since we would've already returned if data is shorter than 12 bytes.
@@ -149,7 +150,7 @@ fn test_action_frame() {
     use crate::parser::{Read, Write};
     let packet_bytes: &[u8] = include_bytes!("../../test_bins/mif.bin");
 
-    let frame = AWDLActionFrame::from_bytes(&mut packet_bytes.into_iter().map(|x| *x)).unwrap();
+    let frame = AWDLActionFrame::from_bytes(&mut packet_bytes.iter().copied()).unwrap();
 
     assert_eq!(frame.to_bytes(), packet_bytes);
 }

@@ -10,7 +10,7 @@ use awdl_frame_parser::{
 
 fn main() {
     let bytes = include_bytes!("../test_bins/mif.bin");
-    let af = AWDLActionFrame::from_bytes(&mut bytes.iter().map(|x| *x)).unwrap();
+    let af = AWDLActionFrame::from_bytes(&mut bytes.iter().copied()).unwrap();
 
     println!("{af:#?}");
     assert_eq!(af.to_bytes(), <&[u8] as Into<Cow<[u8]>>>::into(bytes));
