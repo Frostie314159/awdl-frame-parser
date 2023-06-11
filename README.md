@@ -12,12 +12,12 @@
 * [x] Channel sequence
 * [x] Election parameters
 * [x] Election parameters v2
-* [ ] Synchronization tree
+* [x] Synchronization tree
 * [ ] Data path state
 * [ ] HT capabilities
 * [ ] VHT capibilities
 * [ ] Service parameters
-* [ ] Service response
+* [x] Service response
 ## Features
 The parser was designed to be able to run in low flash environments(i.e. ESP32, wasm).
 To reduce size there is currently the option to disable the "read" or "write" feature, which will strip this functionality from the library. Other than that, there is the option to remove certain TLV parsers from the library, by turning of their respective features.

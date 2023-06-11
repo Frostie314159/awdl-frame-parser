@@ -9,7 +9,10 @@
 - Added channel sequence.
 ## 0.2.1
 - Migrated from deku to handwritten parsers
-- Improved internal architecture an robustness
+- Improved internal architecture and robustness
 - Replaced any uses of std with alloc
 - Introduced better Debug formatters for AWDLVersion and AWDLActionFrame
 - Introduced PartialOrd for AWDLVersion
+## 0.2.2
+- Various performance improvements
+- Introduced Service Response and Sync Tree TLVs

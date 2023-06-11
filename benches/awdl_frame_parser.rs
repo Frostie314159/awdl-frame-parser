@@ -1,6 +1,5 @@
 use awdl_frame_parser::{
     action_frame::{
-        channel::{Channel, ChannelEncoding},
         tlv::{
             dns_sd::{ArpaTLV, ServiceResponseTLV},
             sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
@@ -8,7 +7,7 @@ use awdl_frame_parser::{
         },
         AWDLActionFrame,
     },
-    parser::{Read, ReadCtx, Write},
+    parser::{Read, Write},
 };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -61,8 +60,6 @@ bench_read!(bench_read_arpa_tlv, ArpaTLV);
 bench_write!(bench_write_arpa_tlv, ArpaTLV);
 bench_read!(bench_read_channel_sequence_tlv, ChannelSequenceTLV);
 bench_write!(bench_write_channel_sequence_tlv, ChannelSequenceTLV);
-bench_read!(bench_read_channel, Channel, ChannelEncoding);
-bench_write!(bench_write_channel, Channel);
 bench_read!(bench_read_service_response_tlv, ServiceResponseTLV);
 bench_write!(bench_write_service_response_tlv, ServiceResponseTLV);
 bench_read!(bench_read_sync_tree_tlv, SyncTreeTLV);
@@ -113,16 +110,6 @@ fn criterion_benchmark(c: &mut Criterion) {
         ChannelSequenceTLV::from_bytes(&mut channel_sequence_tlv_bytes.clone().into_iter())
             .unwrap();
     register_bench_fn!(c, bench_write_channel_sequence_tlv, &channel_sequence_tlv);
-
-    let channel_bytes = vec![0x6, 0x51];
-    register_bench_fn!(
-        c,
-        bench_read_channel,
-        channel_bytes.clone(),
-        &ChannelEncoding::OpClass
-    );
-    let channel = Channel::OpClass(0x6, 0x51);
-    register_bench_fn!(c, bench_write_channel, &channel);
 }
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);

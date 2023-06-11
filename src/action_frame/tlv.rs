@@ -766,11 +766,9 @@ pub mod sync_elect {
     #[cfg(feature = "write")]
     use crate::parser::{Write, WriteFixed};
     #[cfg(feature = "read")]
-    use {
-        crate::{
+    use crate::{
             action_frame::tlv::FromTLVError,
             parser::{ParserError, Read, ReadCtx, ReadFixed},
-        },
     };
 
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -833,10 +831,10 @@ pub mod sync_elect {
             if data.len() < 9 {
                 return Err(ParserError::TooLittleData(6 - data.len()));
             }
-            let (channel_count, channel_encoding, duplicate_count, step_count, fill_channel) =
+            let (_channel_count, channel_encoding, duplicate_count, step_count, fill_channel) =
                 ChannelSequenceHeader::from_bytes(&data.next_chunk().unwrap()).unwrap();
             let channel_sequence =
-                ChannelSequence::from_bytes(data, (&channel_count, &channel_encoding)).unwrap();
+                ChannelSequence::from_bytes(data, &channel_encoding).unwrap();
             let _ = data.next_chunk::<3>(); // Discard padding.
             Ok(Self {
                 channel_encoding,
@@ -851,7 +849,7 @@ pub mod sync_elect {
     impl<'a> crate::parser::Write<'a> for ChannelSequenceTLV {
         fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
             let binding = (
-                self.channel_sequence.len() as u8,
+                0x10,
                 self.channel_encoding,
                 self.duplicate_count,
                 self.step_count,
@@ -916,7 +914,7 @@ pub mod sync_elect {
                 duplicate_count: 0,
                 step_count: 4,
                 fill_channel: 0xffff,
-                channel_sequence: fixed_channel_sequence(Channel::OpClass(0x6, 0x51)),
+                channel_sequence: fixed_channel_sequence(Channel::OpClass{ channel: 0x6, opclass: 0x51 }),
             }
         );
 
