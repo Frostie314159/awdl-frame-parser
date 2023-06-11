@@ -16,3 +16,5 @@
 ## 0.2.2
 - Various performance improvements
 - Introduced Service Response and Sync Tree TLVs
+## 0.2.3
+- Updated Bumpalo from 3.12.1 to 3.13.0
