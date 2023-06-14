@@ -20,9 +20,8 @@ data_tlvs = []
 sync_elect_tlvs = []
 data_frame = []
 debug = []
-fixed_chan_seq = []
 all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
-default = ["write", "read", "all_tlvs", "data_frame", "debug", "fixed_chan_seq"]
+default = ["write", "read", "all_tlvs", "data_frame", "debug"]
 
 [dev-dependencies]
 criterion = "0.4.0"
@@ -30,3 +29,7 @@ criterion = "0.4.0"
 [[bench]]
 name = "awdl_frame_parser"
 harness = false
+
+[dependencies]
+bin-utils = "0.1.0"
+cfg-if = "1.0.0"

@@ -1,3 +1,5 @@
+use bin_utils::*;
+
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
 
@@ -28,8 +30,8 @@ impl Debug for AWDLVersion {
     }
 }
 #[cfg(feature = "read")]
-impl crate::parser::ReadFixed<1> for AWDLVersion {
-    fn from_bytes(data: &[u8; 1]) -> Result<Self, crate::parser::ParserError> {
+impl ReadFixed<1> for AWDLVersion {
+    fn from_bytes(data: &[u8; 1]) -> Result<Self, ParserError> {
         Ok(Self {
             major: (data[0] >> 4) & 0xf,
             minor: data[0] & 0xf,
@@ -37,7 +39,7 @@ impl crate::parser::ReadFixed<1> for AWDLVersion {
     }
 }
 #[cfg(feature = "write")]
-impl crate::parser::WriteFixed<1> for AWDLVersion {
+impl WriteFixed<1> for AWDLVersion {
     fn to_bytes(&self) -> [u8; 1] {
         [(self.major << 4) | self.minor]
     }

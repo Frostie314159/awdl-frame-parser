@@ -1,66 +1,9 @@
-
-
-use crate::enum_to_int;
-#[cfg(feature = "read")]
-use crate::parser::{ParserError, ReadCtx};
 #[cfg(feature = "write")]
-use {
-    crate::parser::Write,
-    alloc::borrow::{ToOwned},
-};
+use alloc::borrow::ToOwned;
+use bin_utils::*;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ChannelEncoding {
-    /// Simple channel encoding.
-    Simple,
+use super::channel::*;
 
-    /// Legacy channel encoding.
-    Legacy,
-
-    /// Operating class channel encoding.
-    OpClass,
-
-    Unknown(u8),
-}
-impl ChannelEncoding {
-    pub const fn size(&self) -> u8 {
-        match self {
-            Self::Simple => 1,
-            _ => 2,
-        }
-    }
-}
-enum_to_int! {
-    u8,
-    ChannelEncoding,
-
-    0x00,
-    ChannelEncoding::Simple,
-    0x01,
-    ChannelEncoding::Legacy,
-    0x03,
-    ChannelEncoding::OpClass
-}
-
-pub type ChannelSequenceInternal<T> = [T; 16];
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Channel {
-    Simple { channel: u8 },
-    Legacy { flags: u8, channel: u8 },
-    OpClass { channel: u8, opclass: u8 },
-}
-impl Channel {
-    pub fn channel_encoding(&self) -> ChannelEncoding {
-        match self {
-            Self::Simple { .. } => ChannelEncoding::Simple,
-            Self::Legacy { .. } => ChannelEncoding::Legacy,
-            Self::OpClass { .. } => ChannelEncoding::OpClass,
-        }
-    }
-}
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChannelSequence {
@@ -79,17 +22,28 @@ impl ChannelSequence {
             Self::OpClass(_) => ChannelEncoding::OpClass,
         }
     }
+    pub fn fixed_channel_sequence(channel: Channel) -> Self {
+        match channel {
+            Channel::Simple { channel } => ChannelSequence::Simple([channel; 16]),
+            Channel::Legacy { flags, channel } => ChannelSequence::Legacy([(flags, channel); 16]),
+            Channel::OpClass { channel, opclass } => {
+                ChannelSequence::OpClass([(channel, opclass); 16])
+            }
+        }
+    }
 }
 #[cfg(feature = "read")]
 impl ReadCtx<&ChannelEncoding> for ChannelSequence {
     fn from_bytes(
         data: &mut impl ExactSizeIterator<Item = u8>,
         ctx: &ChannelEncoding,
-    ) -> Result<Self, crate::parser::ParserError> {
+    ) -> Result<Self, ParserError> {
         let channel_sequence_bytes_length = 16 * ctx.size() as usize;
         let mut data = data.take(channel_sequence_bytes_length);
         if data.len() < channel_sequence_bytes_length {
-            return Err(ParserError::TooLittleData(channel_sequence_bytes_length - data.len()));
+            return Err(ParserError::TooLittleData(
+                channel_sequence_bytes_length - data.len(),
+            ));
         }
         Ok(match ctx {
             ChannelEncoding::Simple => Self::Simple(data.next_chunk().unwrap()),
@@ -105,7 +59,7 @@ impl ReadCtx<&ChannelEncoding> for ChannelSequence {
                     .next_chunk()
                     .unwrap(),
             ),
-            ChannelEncoding::Unknown(_) => return Err(ParserError::ValueNotUnderstood)
+            ChannelEncoding::Unknown(_) => return Err(ParserError::ValueNotUnderstood),
         })
     }
 }
@@ -118,12 +72,5 @@ impl<'a> Write<'a> for ChannelSequence {
                 chan_seq.iter().copied().flat_map(|(x, y)| [x, y]).collect()
             }
         }
-    }
-}
-pub fn fixed_channel_sequence(channel: Channel) -> ChannelSequence {
-    match channel {
-        Channel::Simple { channel } => ChannelSequence::Simple([channel; 16]),
-        Channel::Legacy { flags, channel } => ChannelSequence::Legacy([(flags, channel); 16]),
-        Channel::OpClass { channel, opclass } => ChannelSequence::OpClass([(channel, opclass); 16])
     }
 }

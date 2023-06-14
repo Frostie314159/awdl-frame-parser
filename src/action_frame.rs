@@ -1,17 +1,17 @@
-use self::tlv::TLVType;
-
 use alloc::vec::Vec;
 
-use crate::enum_to_int;
+use bin_utils::*;
 
-use self::{tlv::TLV, version::AWDLVersion};
+#[cfg(feature = "read")]
+use alloc::borrow::Cow;
+
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
 
-pub mod channel;
-pub mod dns_compression;
-pub mod tlv;
-pub mod version;
+use crate::{
+    common::awdl_version::AWDLVersion,
+    tlvs::{TLVType, TLV},
+};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -62,22 +62,18 @@ pub struct AWDLActionFrame<'a> {
     pub tlvs: Vec<TLV<'a>>,
 }
 impl AWDLActionFrame<'_> {
-    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<TLV>> {
+    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<&TLV>> {
         return Some(
             self.tlvs
                 .iter()
                 .filter(|tlv| tlv.tlv_type == tlv_type)
-                .cloned()
                 .collect(),
         );
     }
 }
 #[cfg(feature = "read")]
-impl<'a> crate::parser::Read for AWDLActionFrame<'a> {
-    fn from_bytes(
-        data: &mut impl ExactSizeIterator<Item = u8>,
-    ) -> Result<Self, crate::parser::ParserError> {
-        use crate::parser::{ParserError, ReadFixed};
+impl<'a> Read for AWDLActionFrame<'a> {
+    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         if data.len() < 12 {
             return Err(ParserError::HeaderIncomplete(12 - data.len()));
         }
@@ -96,7 +92,7 @@ impl<'a> crate::parser::Read for AWDLActionFrame<'a> {
         let phy_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
         let target_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
 
-        let tlvs = <Vec<TLV> as crate::parser::Read>::from_bytes(data).unwrap();
+        let tlvs = (0..).map_while(|_| TLV::from_bytes(data).ok()).collect();
 
         Ok(Self {
             awdl_version,
@@ -108,21 +104,21 @@ impl<'a> crate::parser::Read for AWDLActionFrame<'a> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> crate::parser::Write<'a> for AWDLActionFrame<'a> {
+impl<'a> Write<'a> for AWDLActionFrame<'a> {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        use crate::parser::WriteFixed;
         let mut header = [0x08u8; 12];
         header[1] = self.awdl_version.to_bytes()[0];
         header[2] = self.subtype.into();
         header[3] = 0x00;
         header[4..8].copy_from_slice(&self.phy_tx_time.to_le_bytes());
         header[8..12].copy_from_slice(&self.target_tx_time.to_le_bytes());
-
-        header
+        let body = self
+            .tlvs
             .iter()
-            .chain(self.tlvs.to_bytes().iter())
-            .copied()
-            .collect()
+            .map(TLV::to_bytes)
+            .collect::<Vec<Cow<[u8]>>>()
+            .concat();
+        header.iter().copied().chain(body).collect()
     }
 }
 #[cfg(feature = "debug")]
@@ -147,8 +143,7 @@ impl Debug for AWDLActionFrame<'_> {
 #[cfg(test)]
 #[test]
 fn test_action_frame() {
-    use crate::parser::{Read, Write};
-    let packet_bytes: &[u8] = include_bytes!("../../test_bins/mif.bin");
+    let packet_bytes: &[u8] = include_bytes!("../test_bins/mif.bin");
 
     let frame = AWDLActionFrame::from_bytes(&mut packet_bytes.iter().copied()).unwrap();
 

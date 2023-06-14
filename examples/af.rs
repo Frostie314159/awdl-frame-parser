@@ -1,12 +1,10 @@
 use std::borrow::Cow;
 
 use awdl_frame_parser::{
-    action_frame::{
-        tlv::{version::VersionTLV, TLVType, TLV},
-        AWDLActionFrame,
-    },
-    parser::{Read, Write},
+    action_frame::AWDLActionFrame,
+    tlvs::{version::VersionTLV, TLVType, TLV},
 };
+use bin_utils::{Read, Write};
 
 fn main() {
     let bytes = include_bytes!("../test_bins/mif.bin");

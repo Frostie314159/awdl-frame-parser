@@ -1,14 +1,12 @@
 use awdl_frame_parser::{
-    action_frame::{
-        tlv::{
-            dns_sd::{ArpaTLV, ServiceResponseTLV},
-            sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
-            TLVType, TLV,
-        },
-        AWDLActionFrame,
+    action_frame::AWDLActionFrame,
+    tlvs::{
+        dns_sd::{ArpaTLV, ServiceResponseTLV},
+        sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
+        TLVType, TLV,
     },
-    parser::{Read, Write},
 };
+use bin_utils::{Read, Write};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 macro_rules! bench_read {

@@ -1,4 +1,4 @@
-use crate::enum_to_int;
+use bin_utils::*;
 
 use alloc::{
     format,
