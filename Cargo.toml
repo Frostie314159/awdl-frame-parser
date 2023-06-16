@@ -31,5 +31,4 @@ name = "awdl_frame_parser"
 harness = false
 
 [dependencies]
-bin-utils = "0.1.0"
-cfg-if = "1.0.0"
+mac-parser = { version = "0.1.1", default-features = false }

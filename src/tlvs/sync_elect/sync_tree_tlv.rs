@@ -1,8 +1,7 @@
 use bin_utils::*;
 
 use alloc::vec::Vec;
-
-use crate::tlvs::{TLVType, TLV};
+use mac_parser::MACAddress;
 
 #[cfg(feature = "read")]
 use crate::tlvs::FromTLVError;
@@ -10,29 +9,23 @@ use crate::tlvs::FromTLVError;
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
 pub struct SyncTreeTLV {
-    pub tree: Vec<[u8; 6]>,
+    pub tree: Vec<MACAddress>,
 }
 #[cfg(feature = "read")]
 impl Read for SyncTreeTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         Ok(Self {
-            tree: data.array_chunks::<6>().collect(),
+            tree: data
+                .array_chunks::<6>()
+                .map(|x| MACAddress::from_bytes(&x).unwrap())
+                .collect(),
         })
     }
 }
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for SyncTreeTLV {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        match self.tree.len() {
-            0 => [0x00; 12].as_slice().into(),
-            1 => [[0x00; 6]]
-                .iter()
-                .chain(self.tree.iter())
-                .copied()
-                .flatten()
-                .collect(),
-            _ => self.tree.iter().flatten().copied().collect(),
-        }
+        self.tree.iter().flat_map(MACAddress::to_bytes).collect()
     }
 }
 #[cfg(feature = "read")]
@@ -68,7 +61,10 @@ fn test_sync_tree_tlv() {
     assert_eq!(
         sync_tree_tlv,
         SyncTreeTLV {
-            tree: alloc::vec![[0xbe, 0x70, 0xf3, 0x17, 0x21, 0xf2], [0x00; 6]]
+            tree: alloc::vec![
+                [0xbe, 0x70, 0xf3, 0x17, 0x21, 0xf2].into(),
+                [0x00; 6].into()
+            ]
         }
     );
 

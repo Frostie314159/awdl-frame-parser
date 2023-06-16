@@ -1,4 +1,5 @@
 use bin_utils::*;
+use mac_parser::MACAddress;
 
 use crate::impl_tlv_conversion_fixed;
 
@@ -9,10 +10,10 @@ use crate::tlvs::TLVType;
 /// Another TLV describing the election parameters of the peer.
 pub struct ElectionParametersV2TLV {
     /// MAC address of the master
-    pub master_address: [u8; 6],
+    pub master_address: MACAddress,
 
     /// MAC address of the peer this peer is syncing to
-    pub sync_address: [u8; 6],
+    pub sync_address: MACAddress,
 
     /// Counter value of the master
     pub master_counter: u32,
@@ -33,8 +34,8 @@ pub struct ElectionParametersV2TLV {
 impl ReadFixed<40> for ElectionParametersV2TLV {
     fn from_bytes(data: &[u8; 40]) -> Result<Self, ParserError> {
         let mut data = data.iter().copied();
-        let master_address = data.next_chunk().unwrap();
-        let sync_address = data.next_chunk().unwrap();
+        let master_address = MACAddress::from_bytes(&data.next_chunk().unwrap()).unwrap(); // Infallible
+        let sync_address = MACAddress::from_bytes(&data.next_chunk().unwrap()).unwrap(); // Infallible
         let master_counter = u32::from_le_bytes(data.next_chunk().unwrap());
         let distance_to_master = u32::from_le_bytes(data.next_chunk().unwrap());
         let master_metric = u32::from_le_bytes(data.next_chunk().unwrap());
@@ -57,8 +58,8 @@ impl ReadFixed<40> for ElectionParametersV2TLV {
 impl WriteFixed<40> for ElectionParametersV2TLV {
     fn to_bytes(&self) -> [u8; 40] {
         let mut bytes = [0x00; 40];
-        bytes[0..6].copy_from_slice(&self.master_address);
-        bytes[6..12].copy_from_slice(&self.sync_address);
+        bytes[0..6].copy_from_slice(&self.master_address.to_bytes());
+        bytes[6..12].copy_from_slice(&self.sync_address.to_bytes());
         bytes[12..16].copy_from_slice(&self.master_counter.to_le_bytes());
         bytes[16..20].copy_from_slice(&self.distance_to_master.to_le_bytes());
         bytes[20..24].copy_from_slice(&self.master_metric.to_le_bytes());
@@ -87,8 +88,8 @@ fn test_election_parameters_v2_tlv() {
     assert_eq!(
         election_parameters_v2_tlv,
         ElectionParametersV2TLV {
-            master_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22],
-            sync_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22],
+            master_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22].into(),
+            sync_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22].into(),
             master_counter: 960,
             distance_to_master: 1,
             master_metric: 650,

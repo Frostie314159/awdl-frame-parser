@@ -1,4 +1,5 @@
 use bin_utils::*;
+use mac_parser::MACAddress;
 
 use crate::{impl_tlv_conversion_fixed, tlvs::TLVType};
 
@@ -16,7 +17,7 @@ pub struct ElectionParametersTLV {
     pub distance_to_master: u8,
 
     /// Address of the master
-    pub master_address: [u8; 6],
+    pub master_address: MACAddress,
 
     /// Self metric of the master
     pub master_metric: u32,
@@ -32,7 +33,7 @@ impl ReadFixed<21> for ElectionParametersTLV {
         let id = u16::from_le_bytes(data.next_chunk().unwrap()); // In reality this is always zero.
         let distance_to_master = data.next().unwrap();
         let _ = data.next();
-        let master_address = data.next_chunk::<6>().unwrap();
+        let master_address = MACAddress::from_bytes(&data.next_chunk::<6>().unwrap()).unwrap(); // Infallible
         let master_metric = u32::from_le_bytes(data.next_chunk().unwrap());
         let self_metric = u32::from_le_bytes(data.next_chunk().unwrap());
         Ok(Self {
@@ -52,7 +53,7 @@ impl WriteFixed<21> for ElectionParametersTLV {
         bytes[0] = self.flags;
         bytes[1..3].copy_from_slice(&self.id.to_le_bytes());
         bytes[3] = self.distance_to_master;
-        bytes[5..11].copy_from_slice(&self.master_address);
+        bytes[5..11].copy_from_slice(&self.master_address.to_bytes());
         bytes[11..15].copy_from_slice(&self.master_metric.to_le_bytes());
         bytes[15..19].copy_from_slice(&self.self_metric.to_le_bytes());
         bytes
@@ -81,7 +82,7 @@ fn test_election_parameters_tlv() {
             flags: 0x00,
             id: 0x00,
             distance_to_master: 0x02,
-            master_address: [0x3a, 0xb4, 0x08, 0x6e, 0x66, 0x3d],
+            master_address: [0x3a, 0xb4, 0x08, 0x6e, 0x66, 0x3d].into(),
             master_metric: 541,
             self_metric: 60
         }
