@@ -57,7 +57,7 @@ impl Read for AWDLDnsRecord<'_> {
         let mut header = data.take(5);
         let record_type = header.next().unwrap().into();
         let length = u16::from_le_bytes(header.next_chunk().unwrap());
-        let _ = header.next_chunk::<2>();
+        let _ = header.skip(2);
 
         if data.len() < length as usize {
             return Err(ParserError::HeaderIncomplete(length as usize - data.len()));
@@ -102,7 +102,7 @@ impl<'a> Write<'a> for AWDLDnsRecord<'a> {
                 static_bytes[2..4].copy_from_slice(&weight.to_be_bytes());
                 static_bytes[4..6].copy_from_slice(&port.to_be_bytes());
 
-                static_bytes.iter().chain(target.iter()).copied().collect()
+                static_bytes.into_iter().chain(target.iter().copied()).collect()
             }
             AWDLDnsRecord::TXT { txt_record } => txt_record
                 .iter()
@@ -112,6 +112,6 @@ impl<'a> Write<'a> for AWDLDnsRecord<'a> {
                 .into(),
         };
         header[1..3].copy_from_slice(&(bytes.len() as u16).to_le_bytes());
-        header.iter().chain(bytes.iter()).copied().collect()
+        header.into_iter().chain(bytes.iter().copied()).collect()
     }
 }

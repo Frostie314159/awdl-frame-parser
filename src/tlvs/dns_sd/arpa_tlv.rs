@@ -31,10 +31,8 @@ impl<'a> Read for ArpaTLV<'a> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for ArpaTLV<'a> {
     fn to_bytes(&self) -> Cow<'a, [u8]> {
-        [self.flags]
-            .iter()
-            .chain(self.arpa.to_bytes().iter())
-            .copied()
+        core::iter::once(self.flags)
+            .chain(self.arpa.to_bytes().iter().copied())
             .collect()
     }
 }

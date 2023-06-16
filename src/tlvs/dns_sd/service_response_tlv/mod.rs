@@ -37,9 +37,8 @@ impl<'a> Write<'a> for ServiceResponseTLV<'a> {
         let name_length = (name.len() as u16 + 1).to_le_bytes();
         let record = self.record.to_bytes();
         name_length
-            .iter()
-            .chain(name.iter().chain(record.iter()))
-            .copied()
+            .into_iter()
+            .chain(name.iter().copied().chain(record.iter().copied()))
             .collect()
     }
 }
