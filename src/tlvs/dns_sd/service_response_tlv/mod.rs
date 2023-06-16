@@ -1,14 +1,17 @@
 pub mod dns_record;
 
+#[cfg(feature = "read")]
+use crate::tlvs::FromTLVError;
 use crate::{
     common::awdl_dns_name::AWDLDnsName,
-    tlvs::{FromTLVError, TLVType, TLV},
+    tlvs::{TLVType, AWDLTLV},
 };
 
 use dns_record::AWDLDnsRecord;
 
 use bin_utils::*;
 
+#[cfg(feature = "write")]
 use alloc::borrow::Cow;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -41,7 +44,7 @@ impl<'a> Write<'a> for ServiceResponseTLV<'a> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> From<ServiceResponseTLV<'a>> for TLV<'a> {
+impl<'a> From<ServiceResponseTLV<'a>> for AWDLTLV<'a> {
     fn from(value: ServiceResponseTLV<'a>) -> Self {
         Self {
             tlv_type: TLVType::ServiceResponse,
@@ -50,9 +53,9 @@ impl<'a> From<ServiceResponseTLV<'a>> for TLV<'a> {
     }
 }
 #[cfg(feature = "read")]
-impl<'a> TryFrom<TLV<'a>> for ServiceResponseTLV<'a> {
+impl<'a> TryFrom<AWDLTLV<'a>> for ServiceResponseTLV<'a> {
     type Error = FromTLVError;
-    fn try_from(value: TLV<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: AWDLTLV<'a>) -> Result<Self, Self::Error> {
         if value.tlv_data.len() < 7 {
             return Err(FromTLVError::IncorrectTlvLength);
         }

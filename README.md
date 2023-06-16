@@ -8,7 +8,7 @@
 ### TLV 
 * [x] Arpa
 * [x] Version
-* [ ] Synchronization parameters
+* [x] Synchronization parameters
 * [x] Channel sequence
 * [x] Election parameters
 * [x] Election parameters v2
@@ -31,7 +31,7 @@ ElectionParameters\[V2\] | sync_elect_tlvs | O(1)
 
 Do note please, that although the parsers are not yet present, the features are. Also some parsers where bundled into one feature. (For more information on this refer to Milan Stute's [dissertation](https://tuprints.ulb.tu-darmstadt.de/11457/1/dissertation_milan-stute_2020.pdf#table.caption.42).)
 ## no_std
-The library is built with the ```alloc``` crate, which makes using it in a no_std environment with an allocator possible.
+The library is built with the `alloc` crate, which makes using it in a no_std environment with an allocator possible.
 ## Credits
 Although the actual parser was written by me, the reverse engineering of the AWDL protocol was conducted by Milan Stute and SeeMoo-Lab. So kudos to them..
 - https://tuprints.ulb.tu-darmstadt.de/11457/1/dissertation_milan-stute_2020.pdf

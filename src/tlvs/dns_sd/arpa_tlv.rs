@@ -1,15 +1,11 @@
 use bin_utils::*;
-use cfg_if::cfg_if;
 
 use crate::common::awdl_dns_name::AWDLDnsName;
-use crate::tlvs::{TLVType, TLV};
-
-cfg_if! {
-    if #[cfg(feature = "read")] {
-        use alloc::borrow::Cow;
-        use crate::tlvs::FromTLVError;
-    }
-}
+#[cfg(feature = "read")]
+use crate::tlvs::FromTLVError;
+use crate::tlvs::{TLVType, AWDLTLV};
+#[cfg(feature = "write")]
+use alloc::borrow::Cow;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Default, PartialEq, Eq)]
@@ -43,7 +39,7 @@ impl<'a> Write<'a> for ArpaTLV<'a> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> From<ArpaTLV<'a>> for TLV<'a> {
+impl<'a> From<ArpaTLV<'a>> for AWDLTLV<'a> {
     fn from(value: ArpaTLV<'a>) -> Self {
         Self {
             tlv_type: TLVType::Arpa,
@@ -52,9 +48,9 @@ impl<'a> From<ArpaTLV<'a>> for TLV<'a> {
     }
 }
 #[cfg(feature = "read")]
-impl<'a> TryFrom<TLV<'a>> for ArpaTLV<'a> {
+impl<'a> TryFrom<AWDLTLV<'a>> for ArpaTLV<'a> {
     type Error = FromTLVError;
-    fn try_from(value: TLV<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: AWDLTLV<'a>) -> Result<Self, Self::Error> {
         if value.tlv_data.len() < 4 {
             return Err(FromTLVError::IncorrectTlvLength);
         }

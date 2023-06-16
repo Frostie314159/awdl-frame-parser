@@ -2,15 +2,12 @@ use alloc::vec::Vec;
 
 use bin_utils::*;
 
-#[cfg(feature = "read")]
-use alloc::borrow::Cow;
-
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
 
 use crate::{
     common::awdl_version::AWDLVersion,
-    tlvs::{TLVType, TLV},
+    tlvs::{TLVType, AWDLTLV},
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -59,10 +56,10 @@ pub struct AWDLActionFrame<'a> {
 
     //TLVs
     /// The TLVs contained in the action frame.
-    pub tlvs: Vec<TLV<'a>>,
+    pub tlvs: Vec<AWDLTLV<'a>>,
 }
 impl AWDLActionFrame<'_> {
-    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<&TLV>> {
+    pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<&AWDLTLV>> {
         return Some(
             self.tlvs
                 .iter()
@@ -92,7 +89,7 @@ impl<'a> Read for AWDLActionFrame<'a> {
         let phy_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
         let target_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
 
-        let tlvs = (0..).map_while(|_| TLV::from_bytes(data).ok()).collect();
+        let tlvs = <Vec<AWDLTLV<'_>> as Read>::from_bytes(data)?;
 
         Ok(Self {
             awdl_version,
@@ -112,13 +109,8 @@ impl<'a> Write<'a> for AWDLActionFrame<'a> {
         header[3] = 0x00;
         header[4..8].copy_from_slice(&self.phy_tx_time.to_le_bytes());
         header[8..12].copy_from_slice(&self.target_tx_time.to_le_bytes());
-        let body = self
-            .tlvs
-            .iter()
-            .map(TLV::to_bytes)
-            .collect::<Vec<Cow<[u8]>>>()
-            .concat();
-        header.iter().copied().chain(body).collect()
+        let body = self.tlvs.to_bytes();
+        header.iter().copied().chain(body.iter().copied()).collect()
     }
 }
 #[cfg(feature = "debug")]
@@ -146,6 +138,5 @@ fn test_action_frame() {
     let packet_bytes: &[u8] = include_bytes!("../test_bins/mif.bin");
 
     let frame = AWDLActionFrame::from_bytes(&mut packet_bytes.iter().copied()).unwrap();
-
     assert_eq!(frame.to_bytes(), packet_bytes);
 }

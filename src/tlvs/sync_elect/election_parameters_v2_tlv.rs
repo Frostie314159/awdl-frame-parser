@@ -73,7 +73,7 @@ impl_tlv_conversion_fixed!(ElectionParametersV2TLV, TLVType::ElectionParametersV
 #[cfg(test)]
 #[test]
 fn test_election_parameters_v2_tlv() {
-    use crate::tlvs::TLV;
+    use crate::tlvs::{AWDLTLV, TLV};
 
     let bytes = include_bytes!("../../../test_bins/election_parameters_v2_tlv.bin");
 
@@ -82,7 +82,7 @@ fn test_election_parameters_v2_tlv() {
     let election_parameters_v2_tlv = ElectionParametersV2TLV::try_from(tlv.clone()).unwrap();
     assert_eq!(
         tlv,
-        <ElectionParametersV2TLV as Into<TLV>>::into(election_parameters_v2_tlv.clone())
+        <ElectionParametersV2TLV as Into<AWDLTLV>>::into(election_parameters_v2_tlv.clone())
     );
 
     assert_eq!(

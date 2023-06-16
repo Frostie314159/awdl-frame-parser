@@ -6,7 +6,10 @@ pub use channel_sequence::*;
 
 use bin_utils::*;
 
-use crate::tlvs::{FromTLVError, TLVType, TLV};
+use crate::tlvs::{TLVType, AWDLTLV};
+
+#[cfg(feature = "read")]
+use crate::tlvs::FromTLVError;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -64,7 +67,7 @@ impl<'a> Write<'a> for ChannelSequenceTLV {
     }
 }
 #[cfg(feature = "write")]
-impl From<ChannelSequenceTLV> for TLV<'_> {
+impl From<ChannelSequenceTLV> for AWDLTLV<'_> {
     fn from(value: ChannelSequenceTLV) -> Self {
         Self {
             tlv_type: TLVType::ChannelSequence,
@@ -73,9 +76,9 @@ impl From<ChannelSequenceTLV> for TLV<'_> {
     }
 }
 #[cfg(feature = "read")]
-impl TryFrom<TLV<'_>> for ChannelSequenceTLV {
+impl TryFrom<AWDLTLV<'_>> for ChannelSequenceTLV {
     type Error = FromTLVError;
-    fn try_from(value: TLV) -> Result<Self, Self::Error> {
+    fn try_from(value: AWDLTLV) -> Result<Self, Self::Error> {
         if value.tlv_data.len() < 9 {
             return Err(FromTLVError::IncorrectTlvLength);
         }
@@ -90,12 +93,12 @@ impl TryFrom<TLV<'_>> for ChannelSequenceTLV {
 fn test_channel_sequence_tlv() {
     let bytes = include_bytes!("../../../../test_bins/channel_sequence_tlv.bin");
 
-    let tlv = TLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let tlv = AWDLTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
 
     let channel_sequence_tlv = ChannelSequenceTLV::try_from(tlv.clone()).unwrap();
     assert_eq!(
         tlv,
-        <ChannelSequenceTLV as Into<TLV>>::into(channel_sequence_tlv.clone())
+        <ChannelSequenceTLV as Into<AWDLTLV>>::into(channel_sequence_tlv.clone())
     );
 
     assert_eq!(

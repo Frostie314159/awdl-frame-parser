@@ -6,11 +6,7 @@ pub mod sync_elect;
 pub mod version;
 
 use bin_utils::*;
-
-use alloc::borrow::Cow;
-
-#[cfg(feature = "read")]
-use core::cmp::Ordering;
+use tlv_rs::TLV;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -83,62 +79,7 @@ enum_to_int! {
     0x18,
     TLVType::ElectionParametersV2
 }
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, PartialEq, Eq)]
-/// A **T**ype **L**ength **V**alue structure.
-pub struct TLV<'a> {
-    /// The type.
-    pub tlv_type: TLVType,
-
-    /// The data contained within the TLV.
-    pub tlv_data: Cow<'a, [u8]>,
-}
-#[cfg(feature = "read")]
-impl Read for TLV<'_> {
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        if data.len() < 3 {
-            return Err(ParserError::TooLittleData(3 - data.len()));
-        }
-
-        let tlv_type = data.next().unwrap().into();
-        let tlv_length = u16::from_le_bytes(data.next_chunk().unwrap());
-        let tlv_data = match data.len().cmp(&(tlv_length as usize)) {
-            Ordering::Less => {
-                return Err(ParserError::TooLittleData(tlv_length as usize - data.len()))
-            }
-            _ => Cow::Owned(data.take(tlv_length as usize).collect()),
-        };
-
-        Ok(Self { tlv_type, tlv_data })
-    }
-}
-#[cfg(feature = "write")]
-impl<'a> Write<'a> for TLV<'a> {
-    fn to_bytes(&self) -> Cow<'a, [u8]> {
-        let tlv_length = self.tlv_data.len().to_le_bytes();
-        let tlv_header = [self.tlv_type.into(), tlv_length[0], tlv_length[1]];
-        tlv_header
-            .into_iter()
-            .chain(self.tlv_data.iter().copied())
-            .collect()
-    }
-}
-#[cfg(test)]
-#[test]
-fn test_tlv() {
-    use alloc::borrow::ToOwned;
-    let bytes = &[0x04, 0x05, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff];
-    let tlv = TLV::from_bytes(&mut bytes.iter().copied()).unwrap();
-    assert_eq!(
-        tlv,
-        TLV {
-            tlv_type: TLVType::SynchronizationParameters,
-            tlv_data: Cow::Owned([0xff; 5].as_slice().to_owned())
-        }
-    );
-    assert_eq!(tlv.to_bytes(), bytes.as_slice().to_owned());
-}
+pub type AWDLTLV<'a> = TLV<'a, TLVType>;
 #[cfg(feature = "read")]
 #[derive(Debug)]
 pub enum FromTLVError {
@@ -151,7 +92,7 @@ pub enum FromTLVError {
 macro_rules! impl_tlv_conversion_fixed {
     ($ntype:ty, $tlv_type:expr, $tlv_length:expr) => {
         #[cfg(feature = "write")]
-        impl From<$ntype> for $crate::tlvs::TLV<'_> {
+        impl From<$ntype> for $crate::tlvs::AWDLTLV<'_> {
             fn from(value: $ntype) -> Self {
                 use alloc::borrow::ToOwned;
                 Self {
@@ -162,9 +103,9 @@ macro_rules! impl_tlv_conversion_fixed {
         }
 
         #[cfg(feature = "read")]
-        impl TryFrom<$crate::tlvs::TLV<'_>> for $ntype {
+        impl TryFrom<$crate::tlvs::AWDLTLV<'_>> for $ntype {
             type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::TLV<'_>) -> Result<Self, Self::Error> {
+            fn try_from(value: $crate::tlvs::AWDLTLV<'_>) -> Result<Self, Self::Error> {
                 if value.tlv_data.len() < $tlv_length {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
                 }

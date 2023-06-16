@@ -63,6 +63,8 @@ impl WriteFixed<2> for VersionTLV {
 #[cfg(test)]
 #[test]
 fn test_version_tlv() {
+    use crate::tlvs::AWDLTLV;
+
     use super::TLV;
 
     let bytes = include_bytes!("../../../test_bins/version_tlv.bin");
@@ -70,7 +72,7 @@ fn test_version_tlv() {
     let tlv = TLV::from_bytes(&mut bytes.iter().copied()).unwrap();
 
     let version_tlv = VersionTLV::try_from(tlv.clone()).unwrap();
-    assert_eq!(tlv, <VersionTLV as Into<TLV>>::into(version_tlv));
+    assert_eq!(tlv, <VersionTLV as Into<AWDLTLV>>::into(version_tlv));
 
     assert_eq!(
         version_tlv,

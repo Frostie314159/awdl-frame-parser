@@ -1,6 +1,9 @@
 use bin_utils::*;
 
-use alloc::{borrow::Cow, vec::Vec};
+use alloc::vec::Vec;
+
+#[cfg(feature = "write")]
+use alloc::borrow::Cow;
 
 use super::{awdl_dns_compression::AWDLDnsCompression, awdl_str::AWDLStr};
 

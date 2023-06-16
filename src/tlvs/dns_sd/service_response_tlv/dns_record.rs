@@ -1,6 +1,8 @@
 use bin_utils::*;
 
-use alloc::{borrow::Cow, vec::Vec};
+#[cfg(feature = "write")]
+use alloc::borrow::Cow;
+use alloc::vec::Vec;
 
 use crate::common::{awdl_dns_name::AWDLDnsName, awdl_str::AWDLStr};
 
