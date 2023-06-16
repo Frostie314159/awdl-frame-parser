@@ -1,7 +1,7 @@
 use awdl_frame_parser::{
     action_frame::AWDLActionFrame,
     tlvs::{
-        dns_sd::{ArpaTLV, ServiceResponseTLV},
+        dns_sd::{ArpaTLV, ServiceParametersTLV, ServiceResponseTLV},
         sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
         TLVType,
     },
@@ -52,6 +52,8 @@ fn bench_get_tlvs(af: &AWDLActionFrame) {
     let _tlvs = af.get_tlvs(TLVType::SynchronizationParameters);
 }
 
+bench_read!(bench_read_service_parmeters_tlv, ServiceParametersTLV);
+bench_write!(bench_write_service_parameters_tlv, ServiceParametersTLV);
 bench_read!(bench_read_arpa_tlv, ArpaTLV);
 bench_write!(bench_write_arpa_tlv, ArpaTLV);
 bench_read!(bench_read_channel_sequence_tlv, ChannelSequenceTLV);
@@ -67,6 +69,18 @@ fn criterion_benchmark(c: &mut Criterion) {
     register_bench_fn!(c, bench_read_af, af_bytes.clone());
     register_bench_fn!(c, bench_write_af, &af);
     register_bench_fn!(c, bench_get_tlvs, &af);
+
+    let service_parameters_tlv_bytes =
+        include_bytes!("../test_bins/service_parameters_tlv.bin")[3..].to_vec();
+    register_bench_fn!(
+        c,
+        bench_read_service_parmeters_tlv,
+        service_parameters_tlv_bytes.clone()
+    );
+    let service_parameters =
+        ServiceParametersTLV::from_bytes(&mut service_parameters_tlv_bytes.clone().into_iter())
+            .unwrap();
+    register_bench_fn!(c, bench_write_service_parameters_tlv, &service_parameters);
 
     let sync_tree_tlv_bytes = include_bytes!("../test_bins/sync_tree_tlv.bin")[3..].to_vec();
     register_bench_fn!(c, bench_read_sync_tree_tlv, sync_tree_tlv_bytes.clone());

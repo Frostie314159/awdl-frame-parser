@@ -17,7 +17,7 @@ write = ["tlv-rs/write"]
 version_tlv = []
 dns_sd_tlvs = []
 data_tlvs = []
-sync_elect_tlvs = []
+sync_elect_tlvs = ["num-integer"]
 data_frame = []
 debug = ["mac-parser/debug", "tlv-rs/debug"]
 all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
@@ -33,4 +33,5 @@ harness = false
 [dependencies]
 bin-utils = "0.1.3"
 mac-parser = { version = "0.1.1", default-features = false }
+num-integer = { version = "0.1.45", default-features = false, optional = true }
 tlv-rs = { version = "0.1.1", default-features = false }
