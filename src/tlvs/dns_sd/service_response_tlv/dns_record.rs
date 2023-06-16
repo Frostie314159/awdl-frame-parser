@@ -57,7 +57,7 @@ impl Read for AWDLDnsRecord<'_> {
         let mut header = data.take(5);
         let record_type = header.next().unwrap().into();
         let length = u16::from_le_bytes(header.next_chunk().unwrap());
-        let _ = header.skip(2);
+        let _ = header.next_chunk::<2>();
 
         if data.len() < length as usize {
             return Err(ParserError::HeaderIncomplete(length as usize - data.len()));
