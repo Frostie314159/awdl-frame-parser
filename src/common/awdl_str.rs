@@ -10,6 +10,12 @@ use try_take::try_take;
 pub struct AWDLStr<'a> {
     string: Cow<'a, str>,
 }
+impl AWDLStr<'_> {
+    pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
+        let chars = self.string.chars().map(|x| x as u8);
+        core::iter::once(self.string.len() as u8).chain(chars)
+    }
+}
 #[cfg(feature = "read")]
 impl Read for AWDLStr<'_> {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {

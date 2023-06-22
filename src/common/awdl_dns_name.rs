@@ -17,6 +17,14 @@ pub struct AWDLDnsName<'a> {
     /// The domain in [compressed form](AWDLDnsCompression).
     pub domain: AWDLDnsCompression,
 }
+impl AWDLDnsName<'_> {
+    pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
+        self.labels
+            .iter()
+            .flat_map(AWDLStr::iter)
+            .chain(<AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes())
+    }
+}
 #[cfg(feature = "read")]
 impl Read for AWDLDnsName<'_> {
     fn from_bytes<'a>(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
