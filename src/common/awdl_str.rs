@@ -3,6 +3,7 @@ use core::ops::{Deref, DerefMut};
 use bin_utils::*;
 
 use alloc::borrow::Cow;
+use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Default, PartialEq, Eq)]
@@ -13,10 +14,7 @@ pub struct AWDLStr<'a> {
 impl Read for AWDLStr<'_> {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let length = data.next().ok_or(ParserError::HeaderIncomplete(1))? as usize;
-        let data = data.take(length);
-        if data.len() < length {
-            return Err(ParserError::TooLittleData(length - data.len()));
-        }
+        let data = try_take(data, length).map_err(ParserError::TooLittleData)?;
         Ok(Self {
             string: data.map(|x| x as char).collect(),
         })

@@ -27,7 +27,7 @@ pub struct ChannelSequenceTLV {
 impl Read for ChannelSequenceTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         if data.len() < 9 {
-            return Err(ParserError::TooLittleData(6 - data.len()));
+            return Err(ParserError::TooLittleData(9 - data.len()));
         }
 
         let _channel_count = data.next().unwrap() + 1; // Don't ask.

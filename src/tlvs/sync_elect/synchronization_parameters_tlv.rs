@@ -2,6 +2,7 @@
 use alloc::borrow::{Cow, ToOwned};
 use bin_utils::*;
 use mac_parser::MACAddress;
+use try_take::try_take;
 
 #[cfg(feature = "read")]
 use crate::tlvs::FromTLVError;
@@ -32,10 +33,7 @@ pub struct SynchronizationParametersTLV {
 }
 impl Read for SynchronizationParametersTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let mut data = data.take(0x21);
-        if data.len() < 0x21 {
-            return Err(ParserError::TooLittleData(0x21 - data.len()));
-        }
+        let mut data = try_take(data, 0x21).map_err(ParserError::TooLittleData)?;
         Ok(Self {
             next_channel: data.next().unwrap(),
             tx_counter: u16::from_le_bytes(data.next_chunk().unwrap()),

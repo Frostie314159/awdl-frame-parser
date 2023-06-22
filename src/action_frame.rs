@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use bin_utils::*;
+use try_take::try_take;
 
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
@@ -71,23 +72,19 @@ impl AWDLActionFrame<'_> {
 #[cfg(feature = "read")]
 impl<'a> Read for AWDLActionFrame<'a> {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        if data.len() < 12 {
-            return Err(ParserError::HeaderIncomplete(12 - data.len()));
-        }
+        let mut header = try_take(data, 0xC).map_err(ParserError::TooLittleData)?;
 
         // Using unwrap is ok now, since we would've already returned if data is shorter than 12 bytes.
-        match data.next() {
-            Some(0x08) => {}
-            None => unreachable!(),
-            _ => return Err(ParserError::InvalidMagic),
-        };
-        let awdl_version = AWDLVersion::from_bytes(&[data.next().unwrap()]).unwrap();
+        if header.next().unwrap() != 0x08 {
+            return Err(ParserError::InvalidMagic);
+        }
+        let awdl_version = AWDLVersion::from(header.next().unwrap());
 
-        let subtype = data.next().unwrap().into();
-        let _ = data.next();
+        let subtype = header.next().unwrap().into();
+        let _ = header.next();
 
-        let phy_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
-        let target_tx_time = u32::from_le_bytes(data.next_chunk().unwrap());
+        let phy_tx_time = u32::from_le_bytes(header.next_chunk().unwrap());
+        let target_tx_time = u32::from_le_bytes(header.next_chunk().unwrap());
 
         let tlvs = <Vec<AWDLTLV<'_>> as Read>::from_bytes(data)?;
 
@@ -103,14 +100,18 @@ impl<'a> Read for AWDLActionFrame<'a> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for AWDLActionFrame<'a> {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        let mut header = [0x08u8; 12];
-        header[1] = self.awdl_version.to_bytes()[0];
+        let mut header = [0x00; 12];
+
+        header[0] = 0x08;
+        header[1] = self.awdl_version.into();
         header[2] = self.subtype.into();
-        header[3] = 0x00;
         header[4..8].copy_from_slice(&self.phy_tx_time.to_le_bytes());
         header[8..12].copy_from_slice(&self.target_tx_time.to_le_bytes());
-        let body = self.tlvs.to_bytes();
-        header.iter().copied().chain(body.iter().copied()).collect()
+        header
+            .iter()
+            .chain(self.tlvs.to_bytes().iter())
+            .copied()
+            .collect()
     }
 }
 #[cfg(feature = "debug")]

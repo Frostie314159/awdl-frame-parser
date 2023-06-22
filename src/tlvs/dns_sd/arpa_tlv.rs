@@ -20,10 +20,7 @@ pub struct ArpaTLV<'a> {
 #[cfg(feature = "read")]
 impl<'a> Read for ArpaTLV<'a> {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        if data.len() < 4 {
-            return Err(ParserError::TooLittleData(data.len() - 4));
-        }
-        let flags = data.next().unwrap();
+        let flags = data.next().ok_or(ParserError::TooLittleData(1))?;
         let arpa = AWDLDnsName::from_bytes(data)?;
         Ok(Self { flags, arpa })
     }

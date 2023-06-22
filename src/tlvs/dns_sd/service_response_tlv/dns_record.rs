@@ -3,6 +3,7 @@ use bin_utils::*;
 #[cfg(feature = "write")]
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
+use try_take::try_take;
 
 use crate::common::{awdl_dns_name::AWDLDnsName, awdl_str::AWDLStr};
 
@@ -54,27 +55,24 @@ impl AWDLDnsRecord<'_> {
 #[cfg(feature = "read")]
 impl Read for AWDLDnsRecord<'_> {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let mut header = data.take(5);
+        let mut header = try_take(data, 5).map_err(ParserError::TooLittleData)?;
         let record_type = header.next().unwrap().into();
         let length = u16::from_le_bytes(header.next_chunk().unwrap());
         let _ = header.next_chunk::<2>();
-
-        if data.len() < length as usize {
-            return Err(ParserError::HeaderIncomplete(length as usize - data.len()));
-        }
+        let mut data = try_take(data, length as usize).map_err(ParserError::TooLittleData)?;
         Ok(match record_type {
             AWDLDnsRecordType::PTR => AWDLDnsRecord::PTR {
-                domain_name: AWDLDnsName::from_bytes(data)?,
+                domain_name: AWDLDnsName::from_bytes(&mut data)?,
             },
             AWDLDnsRecordType::SRV => AWDLDnsRecord::SRV {
                 priority: u16::from_be_bytes(data.next_chunk().unwrap()),
                 weight: u16::from_be_bytes(data.next_chunk().unwrap()),
                 port: u16::from_be_bytes(data.next_chunk().unwrap()),
-                target: AWDLDnsName::from_bytes(data)?,
+                target: AWDLDnsName::from_bytes(&mut data)?,
             },
             AWDLDnsRecordType::TXT => Self::TXT {
                 txt_record: (0..)
-                    .map_while(|_| AWDLStr::from_bytes(data).ok())
+                    .map_while(|_| AWDLStr::from_bytes(&mut data).ok())
                     .collect(),
             },
             AWDLDnsRecordType::Unknown(_) => return Err(ParserError::ValueNotUnderstood),

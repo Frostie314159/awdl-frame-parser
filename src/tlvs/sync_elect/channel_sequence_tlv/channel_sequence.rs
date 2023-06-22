@@ -1,6 +1,6 @@
 #[cfg(feature = "write")]
-use alloc::borrow::ToOwned;
 use bin_utils::*;
+use try_take::try_take;
 
 use super::channel::*;
 
@@ -39,12 +39,8 @@ impl ReadCtx<&ChannelEncoding> for ChannelSequence {
         ctx: &ChannelEncoding,
     ) -> Result<Self, ParserError> {
         let channel_sequence_bytes_length = 16 * ctx.size() as usize;
-        let mut data = data.take(channel_sequence_bytes_length);
-        if data.len() < channel_sequence_bytes_length {
-            return Err(ParserError::TooLittleData(
-                channel_sequence_bytes_length - data.len(),
-            ));
-        }
+        let mut data =
+            try_take(data, channel_sequence_bytes_length).map_err(ParserError::TooLittleData)?;
         Ok(match ctx {
             ChannelEncoding::Simple => Self::Simple(data.next_chunk().unwrap()),
             ChannelEncoding::Legacy => Self::Legacy(
