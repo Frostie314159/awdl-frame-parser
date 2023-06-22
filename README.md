@@ -14,9 +14,9 @@
 * [x] Election parameters v2
 * [x] Synchronization tree
 * [ ] Data path state
-* [ ] HT capabilities
+* [x] HT capabilities
 * [ ] VHT capibilities
-* [ ] Service parameters
+* [x] Service parameters
 * [x] Service response
 ## Features
 The parser was designed to be able to run in low flash environments(i.e. ESP32, wasm).
@@ -25,9 +25,14 @@ The listed time complexity refers to, if the parser runtime rises with input len
 TLV | feature | Worst case time complexity
 -- | -- | --
 Arpa | dns_sd_tlvs | O(n)
-Version | version_tlv | O(1)
+Service Parameters | dns_sd_tlvs | O(n)
+Service Respone | dns_sd_tlvs | min. O(n)
 Channel sequence | sync_elect_tlvs | O(2n)
 ElectionParameters\[V2\] | sync_elect_tlvs | O(1)
+Synchronization Parameters | sync_elect_tlvs | O(1)
+Synchronization Tree | sync_elect_tlvs | O(n)
+HTCapabilities | data_tlvs | O(1)
+Version | version_tlv | O(1)
 
 Do note please, that although the parsers are not yet present, the features are. Also some parsers where bundled into one feature. (For more information on this refer to Milan Stute's [dissertation](https://tuprints.ulb.tu-darmstadt.de/11457/1/dissertation_milan-stute_2020.pdf#table.caption.42).)
 ## no_std

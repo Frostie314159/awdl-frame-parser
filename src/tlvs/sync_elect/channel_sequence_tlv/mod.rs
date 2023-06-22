@@ -37,7 +37,7 @@ impl Read for ChannelSequenceTLV {
         let _fill_channels = u16::from_le_bytes(data.next_chunk().unwrap());
 
         let channel_sequence = ChannelSequence::from_bytes(data, &channel_encoding).unwrap();
-        let _ = data.next_chunk::<3>(); // Discard padding.
+
         Ok(Self {
             channel_encoding,
             step_count,

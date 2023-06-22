@@ -1,3 +1,5 @@
+#[cfg(feature = "data_tlvs")]
+pub mod data;
 #[cfg(feature = "dns_sd_tlvs")]
 pub mod dns_sd;
 #[cfg(feature = "sync_elect_tlvs")]
