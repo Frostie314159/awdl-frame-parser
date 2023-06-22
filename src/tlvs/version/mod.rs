@@ -46,17 +46,16 @@ impl_tlv_conversion_fixed!(VersionTLV, TLVType::Version, 2);
 #[cfg(feature = "read")]
 impl ReadFixed<2> for VersionTLV {
     fn from_bytes(data: &[u8; 2]) -> Result<Self, ParserError> {
-        let mut data = data.iter().copied();
         Ok(Self {
-            version: AWDLVersion::from_bytes(&data.next_chunk().unwrap()).unwrap(),
-            device_class: data.next().unwrap().into(),
+            version: AWDLVersion::from(data[0]),
+            device_class: data[1].into(),
         })
     }
 }
 #[cfg(feature = "write")]
 impl WriteFixed<2> for VersionTLV {
     fn to_bytes(&self) -> [u8; 2] {
-        [self.version.to_bytes()[0], self.device_class.into()]
+        [self.version.into(), self.device_class.into()]
     }
 }
 

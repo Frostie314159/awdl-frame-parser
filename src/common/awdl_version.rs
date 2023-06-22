@@ -1,5 +1,3 @@
-use bin_utils::*;
-
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
 
@@ -30,17 +28,17 @@ impl Debug for AWDLVersion {
     }
 }
 #[cfg(feature = "read")]
-impl ReadFixed<1> for AWDLVersion {
-    fn from_bytes(data: &[u8; 1]) -> Result<Self, ParserError> {
-        Ok(Self {
-            major: (data[0] >> 4) & 0xf,
-            minor: data[0] & 0xf,
-        })
+impl From<u8> for AWDLVersion {
+    fn from(value: u8) -> Self {
+        Self {
+            major: (value >> 4) & 0xf,
+            minor: value & 0xf,
+        }
     }
 }
 #[cfg(feature = "write")]
-impl WriteFixed<1> for AWDLVersion {
-    fn to_bytes(&self) -> [u8; 1] {
-        [(self.major << 4) | self.minor]
+impl From<AWDLVersion> for u8 {
+    fn from(value: AWDLVersion) -> Self {
+        (value.major << 4) | value.minor
     }
 }
