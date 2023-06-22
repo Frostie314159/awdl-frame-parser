@@ -51,11 +51,11 @@ impl<'a> Write<'a> for AWDLDnsName<'a> {
             let binding = self.labels[0].to_bytes();
             let labels = binding.iter().copied();
             let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain.iter().copied()).collect()
+            labels.chain(domain.into_iter()).collect()
         } else {
             let labels = self.labels.iter().flat_map(|x| x.to_bytes().to_vec());
             let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain.iter().copied()).collect()
+            labels.chain(domain.into_iter()).collect()
         }
     }
 }

@@ -60,14 +60,9 @@ impl<'a> Write<'a> for ServiceParametersTLV {
         });
         [0x00; 3]
             .into_iter()
-            .chain(
-                self.sui.to_le_bytes().into_iter().chain(
-                    offsets
-                        .to_le_bytes()
-                        .into_iter()
-                        .chain(values.into_iter().filter(|x| *x != 0)),
-                ),
-            )
+            .chain(self.sui.to_le_bytes().into_iter())
+            .chain(offsets.to_le_bytes().into_iter())
+            .chain(values.into_iter().filter(|x| *x != 0))
             .collect()
     }
 }

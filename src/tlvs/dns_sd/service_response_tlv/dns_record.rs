@@ -93,21 +93,20 @@ impl<'a> Write<'a> for AWDLDnsRecord<'a> {
                 port,
                 target,
             } => {
-                let target = target.to_bytes();
-
                 let mut static_bytes = [0x00; 6];
                 static_bytes[0..2].copy_from_slice(&priority.to_be_bytes());
                 static_bytes[2..4].copy_from_slice(&weight.to_be_bytes());
                 static_bytes[4..6].copy_from_slice(&port.to_be_bytes());
 
-                static_bytes.into_iter().chain(target.iter().copied()).collect()
+                static_bytes
+                    .into_iter()
+                    .chain(target.iter())
+                    .into_iter()
+                    .collect()
             }
-            AWDLDnsRecord::TXT { txt_record } => txt_record
-                .iter()
-                .map(AWDLStr::to_bytes)
-                .collect::<Vec<Cow<[u8]>>>()
-                .concat()
-                .into(),
+            AWDLDnsRecord::TXT { txt_record } => {
+                txt_record.iter().flat_map(AWDLStr::iter).collect()
+            }
         };
         header[1..3].copy_from_slice(&(bytes.len() as u16).to_le_bytes());
         header.into_iter().chain(bytes.iter().copied()).collect()

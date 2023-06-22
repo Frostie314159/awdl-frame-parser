@@ -63,7 +63,7 @@ impl ReadCtx<&ChannelEncoding> for ChannelSequence {
 impl<'a> Write<'a> for ChannelSequence {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
         match self {
-            ChannelSequence::Simple(chan_seq) => chan_seq.as_slice().to_owned().into(),
+            ChannelSequence::Simple(chan_seq) => chan_seq.to_vec().into(),
             ChannelSequence::Legacy(chan_seq) | ChannelSequence::OpClass(chan_seq) => {
                 chan_seq.iter().copied().flat_map(|(x, y)| [x, y]).collect()
             }
