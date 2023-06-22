@@ -34,4 +34,5 @@ harness = false
 bin-utils = "0.1.3"
 mac-parser = { version = "0.1.1", default-features = false }
 num-integer = { version = "0.1.45", default-features = false, optional = true }
+tlv-rs = { version = "0.1.2", default-features = false }
 try_take = "0.1.0"
