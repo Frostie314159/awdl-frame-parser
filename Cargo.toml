@@ -24,7 +24,7 @@ all_tlvs = ["version_tlv", "dns_sd_tlvs", "data_tlvs", "sync_elect_tlvs"]
 default = ["write", "read", "all_tlvs", "data_frame", "debug"]
 
 [dev-dependencies]
-criterion = "0.4.0"
+criterion = { version = "0.4.0", features = ["html_reports"] }
 
 [[bench]]
 name = "awdl_frame_parser"
