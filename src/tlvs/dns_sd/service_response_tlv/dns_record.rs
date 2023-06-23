@@ -64,12 +64,14 @@ impl Read for AWDLDnsRecord<'_> {
             AWDLDnsRecordType::PTR => AWDLDnsRecord::PTR {
                 domain_name: AWDLDnsName::from_bytes(&mut data)?,
             },
-            AWDLDnsRecordType::SRV => AWDLDnsRecord::SRV {
-                priority: u16::from_be_bytes(data.next_chunk().unwrap()),
-                weight: u16::from_be_bytes(data.next_chunk().unwrap()),
-                port: u16::from_be_bytes(data.next_chunk().unwrap()),
+            AWDLDnsRecordType::SRV => {
+                let mut header = try_take(&mut data, 6).map_err(ParserError::TooLittleData)?;
+            AWDLDnsRecord::SRV {
+                priority: u16::from_be_bytes(header.next_chunk().unwrap()),
+                weight: u16::from_be_bytes(header.next_chunk().unwrap()),
+                port: u16::from_be_bytes(header.next_chunk().unwrap()),
                 target: AWDLDnsName::from_bytes(&mut data)?,
-            },
+            }},
             AWDLDnsRecordType::TXT => Self::TXT {
                 txt_record: (0..)
                     .map_while(|_| AWDLStr::from_bytes(&mut data).ok())

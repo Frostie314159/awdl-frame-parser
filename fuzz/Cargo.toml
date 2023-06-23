@@ -1,0 +1,64 @@
+[package]
+name = "awdl-frame-parser-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+bin-utils = "0.1.4"
+libfuzzer-sys = "0.4"
+
+[dependencies.awdl-frame-parser]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "awdl_str"
+path = "fuzz_targets/common/awdl_str.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "awdl_dns_name"
+path = "fuzz_targets/common/awdl_dns_name.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "action_frame"
+path = "fuzz_targets/frames/action_frame.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "arpa_tlv"
+path = "fuzz_targets/tlvs/arpa.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "service_response_tlv"
+path = "fuzz_targets/tlvs/service_response.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "service_parameters_tlv"
+path = "fuzz_targets/tlvs/service_parameters.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "channel_sequence_tlv"
+path = "fuzz_targets/tlvs/channel_sequence.rs"
+test = false
+doc = false

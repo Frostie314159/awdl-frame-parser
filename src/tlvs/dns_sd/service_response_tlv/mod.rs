@@ -13,6 +13,7 @@ use bin_utils::*;
 
 #[cfg(feature = "write")]
 use alloc::borrow::Cow;
+use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -24,8 +25,21 @@ pub struct ServiceResponseTLV<'a> {
 #[cfg(feature = "read")]
 impl Read for ServiceResponseTLV<'_> {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let length = u16::from_le_bytes(data.next_chunk::<2>().unwrap());
-        let name = AWDLDnsName::from_bytes(&mut data.take(length as usize - 1))?;
+        let length = u16::from_le_bytes(
+            try_take(data, 2)
+                .map_err(ParserError::TooLittleData)?
+                .next_chunk()
+                .unwrap(),
+        );
+        let name = AWDLDnsName::from_bytes(
+            &mut try_take(
+                data,
+                length
+                    .checked_sub(1)
+                    .ok_or(ParserError::ValueNotUnderstood)? as usize,
+            )
+            .map_err(ParserError::TooLittleData)?,
+        )?;
         let record = AWDLDnsRecord::from_bytes(data)?;
         Ok(Self { name, record })
     }

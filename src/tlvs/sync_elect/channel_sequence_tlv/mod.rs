@@ -1,10 +1,13 @@
 pub mod channel;
 pub mod channel_sequence;
 
+use core::num::NonZeroU8;
+
 pub use channel::*;
 pub use channel_sequence::*;
 
 use bin_utils::*;
+use try_take::try_take;
 
 use crate::tlvs::{TLVType, AWDLTLV};
 
@@ -18,7 +21,7 @@ pub struct ChannelSequenceTLV {
     pub channel_encoding: ChannelEncoding,
 
     /// The amount of AWs spent on one channel.
-    pub step_count: u8,
+    pub step_count: NonZeroU8,
 
     /// The channels.
     pub channel_sequence: ChannelSequence,
@@ -26,17 +29,15 @@ pub struct ChannelSequenceTLV {
 #[cfg(feature = "read")]
 impl Read for ChannelSequenceTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        if data.len() < 9 {
-            return Err(ParserError::TooLittleData(9 - data.len()));
-        }
+        let mut header = try_take(data, 9).map_err(ParserError::TooLittleData)?;
 
-        let _channel_count = data.next().unwrap() + 1; // Don't ask.
-        let channel_encoding = data.next().unwrap().into();
-        let _duplicate_count = data.next().unwrap();
-        let step_count = data.next().unwrap() + 1;
-        let _fill_channels = u16::from_le_bytes(data.next_chunk().unwrap());
+        let _channel_count = header.next().unwrap().checked_add(1).ok_or(ParserError::ValueNotUnderstood)?; // Don't ask.
+        let channel_encoding = header.next().unwrap().into();
+        let _duplicate_count = header.next().unwrap();
+        let step_count = NonZeroU8::new(header.next().unwrap().checked_add(1).ok_or(ParserError::ValueNotUnderstood)?).unwrap();
+        let _fill_channels = u16::from_le_bytes(header.next_chunk().unwrap());
 
-        let channel_sequence = ChannelSequence::from_bytes(data, &channel_encoding).unwrap();
+        let channel_sequence = ChannelSequence::from_bytes(data, &channel_encoding)?;
 
         Ok(Self {
             channel_encoding,
@@ -52,7 +53,7 @@ impl<'a> Write<'a> for ChannelSequenceTLV {
             0x0f,
             self.channel_encoding.into(),
             0x00,
-            self.step_count - 1,
+            self.step_count.get() - 1,
             0xff,
             0xff,
         ];
@@ -105,7 +106,7 @@ fn test_channel_sequence_tlv() {
         channel_sequence_tlv,
         ChannelSequenceTLV {
             channel_encoding: ChannelEncoding::OpClass,
-            step_count: 4,
+            step_count: NonZeroU8::new(4).unwrap(),
             channel_sequence: ChannelSequence::fixed_channel_sequence(Channel::OpClass {
                 channel: 0x6,
                 opclass: 0x51

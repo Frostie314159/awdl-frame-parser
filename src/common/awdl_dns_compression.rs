@@ -85,7 +85,7 @@ macro_rules! string {
 impl ToString for AWDLDnsCompression {
     fn to_string(&self) -> String {
         match self {
-            AWDLDnsCompression::Null => string!("null"),
+            AWDLDnsCompression::Null => string!(""),
             AWDLDnsCompression::AirPlayTcpLocal => string!("_airplay._tcp.local"),
             AWDLDnsCompression::AirPlayUdpLocal => string!("_airplay._udp.local"),
             AWDLDnsCompression::AirPlay => string!("_airplay"),
