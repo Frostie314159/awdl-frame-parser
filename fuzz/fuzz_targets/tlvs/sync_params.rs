@@ -5,5 +5,5 @@ use bin_utils::*;
 extern crate awdl_frame_parser;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = awdl_frame_parser::common::AWDLStr::from_bytes(&mut data.iter().copied());
+    let _ = awdl_frame_parser::tlvs::sync_elect::SynchronizationParametersTLV::from_bytes(&mut data.iter().copied());
 });
