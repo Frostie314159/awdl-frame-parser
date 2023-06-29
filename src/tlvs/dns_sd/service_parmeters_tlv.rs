@@ -4,13 +4,19 @@ use alloc::vec::Vec;
 use bin_utils::*;
 use num_integer::Integer;
 
+use crate::{impl_tlv_conversion, tlvs::TLVType};
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
+/// We don't know what these values mean, but we do know how to decode/encode them.
 pub struct ServiceParametersTLV {
+    /// An increment causes a DNS flush at the peer.
     pub sui: u16,
+    /// No idea honestly.
     pub encoded_values: Vec<u8>,
 }
 impl ServiceParametersTLV {
+    #[inline]
     fn process_bitmask<T>(bitmask: &'_ T) -> impl Iterator<Item = (bool, u8)> + '_
     where
         T: Integer + BitAnd<<T as Shl>::Output> + Copy + From<u8> + Shl,
