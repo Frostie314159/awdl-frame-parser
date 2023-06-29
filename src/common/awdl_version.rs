@@ -29,6 +29,7 @@ impl Debug for AWDLVersion {
 }
 #[cfg(feature = "read")]
 impl From<u8> for AWDLVersion {
+    #[inline]
     fn from(value: u8) -> Self {
         Self {
             major: (value >> 4) & 0xf,
@@ -38,6 +39,7 @@ impl From<u8> for AWDLVersion {
 }
 #[cfg(feature = "write")]
 impl From<AWDLVersion> for u8 {
+    #[inline]
     fn from(value: AWDLVersion) -> Self {
         (value.major << 4) | value.minor
     }
