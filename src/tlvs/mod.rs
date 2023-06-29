@@ -1,10 +1,17 @@
 #[cfg(feature = "data_tlvs")]
+#[doc(cfg(feature = "data_tlvs"))]
+/// TLVs regarding the data path.
 pub mod data;
 #[cfg(feature = "dns_sd_tlvs")]
+#[doc(cfg(feature = "dns_sd_tlvs"))]
+/// TLVs containing data about dns services.
 pub mod dns_sd;
 #[cfg(feature = "sync_elect_tlvs")]
+#[doc(cfg(feature = "sync_elect_tlvs"))]
+/// TLVs about the synchronization and election state of the peer.
 pub mod sync_elect;
 #[cfg(feature = "version_tlv")]
+#[doc(cfg(feature = "version_tlv"))]
 pub mod version;
 
 use bin_utils::*;
@@ -84,6 +91,7 @@ enum_to_int! {
 pub type AWDLTLV<'a> = TLV<'a, TLVType>;
 #[cfg(feature = "read")]
 #[derive(Debug)]
+/// Errors that can occur while converting an AWDLTLV to a specific type.
 pub enum FromTLVError {
     IncorrectTlvType,
     IncorrectTlvLength,

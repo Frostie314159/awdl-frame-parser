@@ -7,7 +7,11 @@ use crate::{impl_tlv_conversion, tlvs::TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
+/// This describes the structure of the AWDL mesh.
+/// The contained mac address are in descending order,
+/// with the first one being the mesh master and the other ones being sync masters.
 pub struct SyncTreeTLV {
+    /// The MACs.
     pub tree: Vec<MACAddress>,
 }
 #[cfg(feature = "read")]

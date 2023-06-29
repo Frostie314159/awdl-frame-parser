@@ -12,9 +12,12 @@ use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
+/// This TLV contains data about services offered by the peer.
 pub struct ServiceResponseTLV<'a> {
+    /// The fullname of the service.
     pub name: AWDLDnsName<'a>,
 
+    /// The DNS record contained in this response.
     pub record: AWDLDnsRecord<'a>,
 }
 #[cfg(feature = "read")]

@@ -72,6 +72,7 @@ impl<'a> Write<'a> for ServiceParametersTLV {
             .collect()
     }
 }
+impl_tlv_conversion!(false, ServiceParametersTLV, TLVType::ServiceParameters, 8);
 #[cfg(test)]
 #[test]
 fn test_service_parameters_tlv() {

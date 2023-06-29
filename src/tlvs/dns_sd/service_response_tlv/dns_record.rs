@@ -29,22 +29,27 @@ enum_to_int! {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
+/// A DNS record as encoded by AWDL.
 pub enum AWDLDnsRecord<'a> {
+    /// Service
     SRV {
         priority: u16,
         weight: u16,
         port: u16,
         target: AWDLDnsName<'a>,
     },
+    /// Pointer
     PTR {
         domain_name: AWDLDnsName<'a>,
     },
+    /// Text
     TXT {
         txt_record: Vec<AWDLStr<'a>>,
     },
 }
 impl AWDLDnsRecord<'_> {
     #[inline]
+    /// Returns the [record type](AWDLDnsRecordType).
     pub const fn record_type(&self) -> AWDLDnsRecordType {
         match self {
             AWDLDnsRecord::PTR { .. } => AWDLDnsRecordType::PTR,
