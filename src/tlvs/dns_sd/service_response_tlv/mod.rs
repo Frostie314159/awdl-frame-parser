@@ -42,12 +42,11 @@ impl Read for ServiceResponseTLV<'_> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for ServiceResponseTLV<'a> {
     fn to_bytes(&self) -> Cow<'a, [u8]> {
-        let name = self.name.to_bytes();
-        let name_length = (name.len() as u16 + 1).to_le_bytes();
+        let name_length = (self.name.len() as u16 + 1).to_le_bytes();
         let record = self.record.to_bytes();
         name_length
             .into_iter()
-            .chain(name.iter().copied())
+            .chain(self.name.iter())
             .chain(record.iter().copied())
             .collect()
     }
@@ -60,7 +59,7 @@ mod service_response_tests {
     use bin_utils::*;
 
     use crate::{
-        common::{awdl_dns_compression::AWDLDnsCompression, awdl_dns_name::AWDLDnsName},
+        common::{AWDLDnsCompression, AWDLDnsName},
         tlvs::dns_sd::{dns_record::AWDLDnsRecord, ServiceResponseTLV},
     };
 

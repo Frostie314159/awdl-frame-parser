@@ -5,7 +5,7 @@ use alloc::borrow::Cow;
 use alloc::vec::Vec;
 use try_take::try_take;
 
-use crate::common::{awdl_dns_name::AWDLDnsName, awdl_str::AWDLStr};
+use crate::common::{AWDLDnsName, AWDLStr};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
