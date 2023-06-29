@@ -1,13 +1,17 @@
+use core::fmt::Debug;
+
 use bin_utils::*;
 
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 #[cfg(feature = "write")]
 use alloc::borrow::Cow;
 
 use super::{awdl_dns_compression::AWDLDnsCompression, awdl_str::AWDLStr};
 
-#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Default, PartialEq, Eq)]
 /// A hostname combined with the [domain](AWDLDnsCompression).
 pub struct AWDLDnsName<'a> {
@@ -18,11 +22,26 @@ pub struct AWDLDnsName<'a> {
     pub domain: AWDLDnsCompression,
 }
 impl AWDLDnsName<'_> {
+    #[inline]
+    /// Turns the string into an Iterator over bytes without allocating.
     pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
         self.labels
             .iter()
             .flat_map(AWDLStr::iter)
             .chain(<AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes())
+    }
+    #[inline]
+    /// Returns the complete length in bytes.
+    pub fn len(&self) -> usize {
+        self.labels.iter().map(|x| x.total_len()).sum::<usize>() + 2
+    }
+    #[inline]
+    /// Returns false if either the labels vector is empty or the only element in the vector is empty.
+    pub fn is_empty(&self) -> bool {
+        match self.labels.get(0) {
+            Some(label) => label.is_empty(),
+            None => true,
+        }
     }
 }
 #[cfg(feature = "read")]
@@ -47,16 +66,21 @@ impl Read for AWDLDnsName<'_> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for AWDLDnsName<'a> {
     fn to_bytes(&self) -> Cow<'a, [u8]> {
-        if self.labels.len() == 1 {
-            let binding = self.labels[0].to_bytes();
-            let labels = binding.iter().copied();
-            let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain.into_iter()).collect()
-        } else {
-            let labels = self.labels.iter().flat_map(|x| x.to_bytes().to_vec());
-            let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain.into_iter()).collect()
-        }
+        self.iter().collect()
+    }
+}
+impl ToString for AWDLDnsName<'_> {
+    fn to_string(&self) -> String {
+        self.labels
+            .iter()
+            .fold(String::new(), |acc, x| acc + x + ".")
+            + &self.domain.to_string()
+    }
+}
+#[cfg(feature = "debug")]
+impl Debug for AWDLDnsName<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.to_string())
     }
 }
 #[cfg(test)]
