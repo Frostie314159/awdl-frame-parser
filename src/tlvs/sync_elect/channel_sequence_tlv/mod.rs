@@ -3,8 +3,8 @@ pub mod channel_sequence;
 
 use core::num::NonZeroU8;
 
-pub use channel::*;
-pub use channel_sequence::*;
+use channel::*;
+use channel_sequence::*;
 
 use bin_utils::*;
 use try_take::try_take;
@@ -28,10 +28,21 @@ impl Read for ChannelSequenceTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let mut header = try_take(data, 9).map_err(ParserError::TooLittleData)?;
 
-        let _channel_count = header.next().unwrap().checked_add(1).ok_or(ParserError::ValueNotUnderstood)?; // Don't ask.
+        let _channel_count = header
+            .next()
+            .unwrap()
+            .checked_add(1)
+            .ok_or(ParserError::ValueNotUnderstood)?; // Don't ask.
         let channel_encoding = header.next().unwrap().into();
         let _duplicate_count = header.next().unwrap();
-        let step_count = NonZeroU8::new(header.next().unwrap().checked_add(1).ok_or(ParserError::ValueNotUnderstood)?).unwrap();
+        let step_count = NonZeroU8::new(
+            header
+                .next()
+                .unwrap()
+                .checked_add(1)
+                .ok_or(ParserError::ValueNotUnderstood)?,
+        )
+        .unwrap();
         let _fill_channels = u16::from_le_bytes(header.next_chunk().unwrap());
 
         let channel_sequence = ChannelSequence::from_bytes(data, &channel_encoding)?;

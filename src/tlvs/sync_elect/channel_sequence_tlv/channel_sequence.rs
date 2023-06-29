@@ -6,23 +6,28 @@ use super::channel::*;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq)]
+/// The different types of channel sequences.
 pub enum ChannelSequence {
-    /// Channel
+    /// This encodes just the channel.
     Simple(ChannelSequenceInternal<u8>),
-    /// Flags, Channel
-    Legacy(ChannelSequenceInternal<(u8, u8)>),
-    /// Channel, OpClass
+    /// This encodes channel flags and the channel it self.
+    Legacy(ChannelSequenceInternal<(LegacyFlags, u8)>),
+    /// This encodes first the channel and then the channels opclass.
     OpClass(ChannelSequenceInternal<(u8, u8)>),
 }
 impl ChannelSequence {
-    pub fn channel_encoding(&self) -> ChannelEncoding {
+    #[inline]
+    /// Returns the channel encoding of the channel sequence.
+    pub const fn channel_encoding(&self) -> ChannelEncoding {
         match self {
             Self::Simple(_) => ChannelEncoding::Simple,
             Self::Legacy(_) => ChannelEncoding::Legacy,
             Self::OpClass(_) => ChannelEncoding::OpClass,
         }
     }
-    pub fn fixed_channel_sequence(channel: Channel) -> Self {
+    #[inline]
+    /// Generates a repeating channel sequence with the argument.
+    pub const fn fixed_channel_sequence(channel: Channel) -> Self {
         match channel {
             Channel::Simple { channel } => ChannelSequence::Simple([channel; 16]),
             Channel::Legacy { flags, channel } => ChannelSequence::Legacy([(flags, channel); 16]),
@@ -45,7 +50,7 @@ impl ReadCtx<&ChannelEncoding> for ChannelSequence {
             ChannelEncoding::Simple => Self::Simple(data.next_chunk().unwrap()),
             ChannelEncoding::Legacy => Self::Legacy(
                 data.array_chunks::<2>()
-                    .map(|x| (x[0], x[1]))
+                    .map(|x| (x[0].into(), x[1]))
                     .next_chunk()
                     .unwrap(),
             ),
@@ -64,7 +69,12 @@ impl<'a> Write<'a> for ChannelSequence {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
         match self {
             ChannelSequence::Simple(chan_seq) => chan_seq.to_vec().into(),
-            ChannelSequence::Legacy(chan_seq) | ChannelSequence::OpClass(chan_seq) => {
+            ChannelSequence::Legacy(chan_seq) => chan_seq
+                .iter()
+                .copied()
+                .flat_map(|(x, y)| [x.into(), y])
+                .collect(),
+            ChannelSequence::OpClass(chan_seq) => {
                 chan_seq.iter().copied().flat_map(|(x, y)| [x, y]).collect()
             }
         }

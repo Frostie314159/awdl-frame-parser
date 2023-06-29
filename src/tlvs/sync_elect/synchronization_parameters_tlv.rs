@@ -1,5 +1,4 @@
 #[cfg(feature = "write")]
-use alloc::borrow::{Cow, ToOwned};
 use bin_utils::*;
 use mac_parser::MACAddress;
 use try_take::try_take;
@@ -8,60 +7,65 @@ use try_take::try_take;
 use crate::tlvs::FromTLVError;
 use crate::tlvs::{TLVType, AWDLTLV};
 
+use super::ChannelSequenceTLV;
+
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+/// The synchronization parameters of the peer.
 pub struct SynchronizationParametersTLV {
-    next_channel: u8,
-    tx_counter: u16,
-    master_channel: u8,
-    guard_time: u8,
-    aw_period: u16,
-    af_period: u16,
-    awdl_flags: u16, // Don't ask, don't know either.
-    aw_ext_length: u16,
-    aw_common_length: u16,
-    remaining_aw_length: u16,
-    min_ext_count: u8,
-    max_multicast_ext_count: u8,
-    max_unicast_ext_count: u8,
-    max_af_ext_count: u8,
-    master_address: MACAddress,
-    presence_mode: u8,
-    aw_seq_number: u16,
-    ap_beacon_alignment_delta: u16,
-    // The channel sequence is omitted, because it's wrong anyways.
+    pub next_channel: u8,
+    pub tx_counter: u16,
+    pub master_channel: u8,
+    pub guard_time: u8,
+    pub aw_period: u16,
+    pub af_period: u16,
+    pub awdl_flags: u16, // Don't ask, don't know either.
+    pub aw_ext_length: u16,
+    pub aw_common_length: u16,
+    pub remaining_aw_length: u16,
+    pub min_ext_count: u8,
+    pub max_multicast_ext_count: u8,
+    pub max_unicast_ext_count: u8,
+    pub max_af_ext_count: u8,
+    pub master_address: MACAddress,
+    pub presence_mode: u8,
+    pub aw_seq_number: u16,
+    pub ap_beacon_alignment_delta: u16,
+    /// This isn't actually a TLV, but contains the functionality we need.
+    pub channel_sequence: ChannelSequenceTLV,
 }
 impl Read for SynchronizationParametersTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let mut data = try_take(data, 0x21).map_err(ParserError::TooLittleData)?;
+        let mut fixed_data = try_take(data, 0x21).map_err(ParserError::TooLittleData)?;
         Ok(Self {
-            next_channel: data.next().unwrap(),
-            tx_counter: u16::from_le_bytes(data.next_chunk().unwrap()),
-            master_channel: data.next().unwrap(),
-            guard_time: data.next().unwrap(),
-            aw_period: u16::from_le_bytes(data.next_chunk().unwrap()),
-            af_period: u16::from_le_bytes(data.next_chunk().unwrap()),
-            awdl_flags: u16::from_le_bytes(data.next_chunk().unwrap()),
-            aw_ext_length: u16::from_le_bytes(data.next_chunk().unwrap()),
-            aw_common_length: u16::from_le_bytes(data.next_chunk().unwrap()),
-            remaining_aw_length: u16::from_le_bytes(data.next_chunk().unwrap()),
-            min_ext_count: data.next().unwrap(),
-            max_multicast_ext_count: data.next().unwrap(),
-            max_unicast_ext_count: data.next().unwrap(),
-            max_af_ext_count: data.next().unwrap(),
-            master_address: MACAddress::from_bytes(&data.next_chunk().unwrap())?,
-            presence_mode: data.next().unwrap(),
+            next_channel: fixed_data.next().unwrap(),
+            tx_counter: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            master_channel: fixed_data.next().unwrap(),
+            guard_time: fixed_data.next().unwrap(),
+            aw_period: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            af_period: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            awdl_flags: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            aw_ext_length: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            aw_common_length: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            remaining_aw_length: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            min_ext_count: fixed_data.next().unwrap(),
+            max_multicast_ext_count: fixed_data.next().unwrap(),
+            max_unicast_ext_count: fixed_data.next().unwrap(),
+            max_af_ext_count: fixed_data.next().unwrap(),
+            master_address: MACAddress::from_bytes(&fixed_data.next_chunk().unwrap())?,
+            presence_mode: fixed_data.next().unwrap(),
             aw_seq_number: {
-                let _ = data.next(); // padding
-                u16::from_le_bytes(data.next_chunk().unwrap())
+                let _ = fixed_data.next(); // padding
+                u16::from_le_bytes(fixed_data.next_chunk().unwrap())
             },
-            ap_beacon_alignment_delta: u16::from_le_bytes(data.next_chunk().unwrap()),
+            ap_beacon_alignment_delta: u16::from_le_bytes(fixed_data.next_chunk().unwrap()),
+            channel_sequence: ChannelSequenceTLV::from_bytes(data)?,
         })
     }
 }
-impl WriteFixed<73> for SynchronizationParametersTLV {
-    fn to_bytes(&self) -> [u8; 73] {
-        let mut data = [0; 73];
+impl<'a> Write<'a> for SynchronizationParametersTLV {
+    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+        let mut data = [0; 33];
 
         data[0] = self.next_channel;
         data[1..3].copy_from_slice(&self.tx_counter.to_le_bytes());
@@ -82,13 +86,10 @@ impl WriteFixed<73> for SynchronizationParametersTLV {
         data[29..31].copy_from_slice(&self.aw_seq_number.to_le_bytes());
         data[31..33].copy_from_slice(&self.ap_beacon_alignment_delta.to_le_bytes());
 
-        // Channel Sequence
-        data[33] = 0x0f;
-        data[34] = 0x01;
-        data[36] = 0x03;
-        data[37..39].copy_from_slice(&[0xff; 2]);
-
-        data
+        data.iter()
+            .chain(self.channel_sequence.to_bytes().iter())
+            .copied()
+            .collect()
     }
 }
 #[cfg(feature = "read")]
@@ -110,13 +111,20 @@ impl From<SynchronizationParametersTLV> for AWDLTLV<'_> {
     fn from(value: SynchronizationParametersTLV) -> Self {
         Self {
             tlv_type: TLVType::SynchronizationParameters,
-            tlv_data: Cow::Owned(value.to_bytes().as_slice().to_owned()),
+            tlv_data: value.to_bytes().to_vec().into(),
         }
     }
 }
 #[cfg(test)]
 #[test]
 fn test_sync_parameters_tlv() {
+    use core::num::NonZeroU8;
+
+    use crate::tlvs::sync_elect::{
+        channel::{Band, ChannelBandwidth, ChannelEncoding, LegacyFlags, SupportChannel},
+        channel_sequence::ChannelSequence,
+    };
+
     let bytes = include_bytes!("../../../test_bins/sync_parameters_tlv.bin")[3..].to_vec();
 
     let sync_parameters_tlv =
@@ -125,23 +133,157 @@ fn test_sync_parameters_tlv() {
         sync_parameters_tlv,
         SynchronizationParametersTLV {
             next_channel: 44,
-            tx_counter: 38,
-            master_channel: 44,
+            tx_counter: 49,
+            master_channel: 6,
             guard_time: 0,
             aw_period: 16,
             af_period: 110,
             awdl_flags: 0x1800,
             aw_ext_length: 16,
             aw_common_length: 16,
-            remaining_aw_length: 0,
+            remaining_aw_length: 1,
             min_ext_count: 3,
             max_multicast_ext_count: 3,
             max_unicast_ext_count: 3,
             max_af_ext_count: 3,
             master_address: [0xce, 0x21, 0x1f, 0x62, 0x21, 0x22].into(),
             presence_mode: 4,
-            aw_seq_number: 2025,
-            ap_beacon_alignment_delta: 2022
+            aw_seq_number: 1988,
+            ap_beacon_alignment_delta: 1986,
+            channel_sequence: ChannelSequenceTLV {
+                channel_encoding: ChannelEncoding::Legacy,
+                step_count: NonZeroU8::new(4).unwrap(),
+                channel_sequence: ChannelSequence::Legacy([
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Primary,
+                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            band: Band::TwoPointFourGHz
+                        },
+                        8
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Primary,
+                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            band: Band::TwoPointFourGHz
+                        },
+                        8
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Primary,
+                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            band: Band::TwoPointFourGHz
+                        },
+                        8
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Primary,
+                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            band: Band::TwoPointFourGHz
+                        },
+                        8
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        46
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        38
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        38
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        38
+                    ),
+                    (
+                        LegacyFlags {
+                            support_channel: SupportChannel::Lower,
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            band: Band::FiveGHz
+                        },
+                        38
+                    ),
+                ])
+            }
         }
     );
     assert_eq!(sync_parameters_tlv.to_bytes()[..33], bytes[..33]);
