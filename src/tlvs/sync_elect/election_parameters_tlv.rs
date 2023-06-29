@@ -1,7 +1,7 @@
 use bin_utils::*;
 use mac_parser::MACAddress;
 
-use crate::{impl_tlv_conversion_fixed, tlvs::TLVType};
+use crate::{impl_tlv_conversion, tlvs::TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -59,7 +59,7 @@ impl WriteFixed<21> for ElectionParametersTLV {
         bytes
     }
 }
-impl_tlv_conversion_fixed!(ElectionParametersTLV, TLVType::ElectionParameters, 21);
+impl_tlv_conversion!(true, ElectionParametersTLV, TLVType::ElectionParameters, 21);
 
 #[cfg(test)]
 #[test]

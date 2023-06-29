@@ -1,11 +1,6 @@
 pub mod dns_record;
 
-#[cfg(feature = "read")]
-use crate::tlvs::FromTLVError;
-use crate::{
-    common::awdl_dns_name::AWDLDnsName,
-    tlvs::{TLVType, AWDLTLV},
-};
+use crate::{common::AWDLDnsName, impl_tlv_conversion, tlvs::TLVType};
 
 use dns_record::AWDLDnsRecord;
 
@@ -57,28 +52,7 @@ impl<'a> Write<'a> for ServiceResponseTLV<'a> {
             .collect()
     }
 }
-#[cfg(feature = "write")]
-impl<'a> From<ServiceResponseTLV<'a>> for AWDLTLV<'a> {
-    fn from(value: ServiceResponseTLV<'a>) -> Self {
-        Self {
-            tlv_type: TLVType::ServiceResponse,
-            tlv_data: value.to_bytes(),
-        }
-    }
-}
-#[cfg(feature = "read")]
-impl<'a> TryFrom<AWDLTLV<'a>> for ServiceResponseTLV<'a> {
-    type Error = FromTLVError;
-    fn try_from(value: AWDLTLV<'a>) -> Result<Self, Self::Error> {
-        if value.tlv_data.len() < 7 {
-            return Err(FromTLVError::IncorrectTlvLength);
-        }
-        if value.tlv_type != TLVType::ServiceResponse {
-            return Err(FromTLVError::IncorrectTlvType);
-        }
-        Self::from_bytes(&mut value.tlv_data.iter().copied()).map_err(FromTLVError::ParserError)
-    }
-}
+impl_tlv_conversion!(false, ServiceResponseTLV<'a>, TLVType::ServiceResponse, 9);
 #[cfg(test)]
 mod service_response_tests {
     use alloc::{borrow::Cow, vec};

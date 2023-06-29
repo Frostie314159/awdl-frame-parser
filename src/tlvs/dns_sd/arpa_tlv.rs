@@ -1,9 +1,7 @@
 use bin_utils::*;
 
-use crate::common::awdl_dns_name::AWDLDnsName;
-#[cfg(feature = "read")]
-use crate::tlvs::FromTLVError;
-use crate::tlvs::{TLVType, AWDLTLV};
+use crate::tlvs::TLVType;
+use crate::{common::AWDLDnsName, impl_tlv_conversion};
 #[cfg(feature = "write")]
 use alloc::borrow::Cow;
 
@@ -33,28 +31,7 @@ impl<'a> Write<'a> for ArpaTLV<'a> {
             .collect()
     }
 }
-#[cfg(feature = "write")]
-impl<'a> From<ArpaTLV<'a>> for AWDLTLV<'a> {
-    fn from(value: ArpaTLV<'a>) -> Self {
-        Self {
-            tlv_type: TLVType::Arpa,
-            tlv_data: value.to_bytes(),
-        }
-    }
-}
-#[cfg(feature = "read")]
-impl<'a> TryFrom<AWDLTLV<'a>> for ArpaTLV<'a> {
-    type Error = FromTLVError;
-    fn try_from(value: AWDLTLV<'a>) -> Result<Self, Self::Error> {
-        if value.tlv_data.len() < 4 {
-            return Err(FromTLVError::IncorrectTlvLength);
-        }
-        if value.tlv_type != TLVType::Arpa {
-            return Err(FromTLVError::IncorrectTlvType);
-        }
-        Self::from_bytes(&mut value.tlv_data.iter().copied()).map_err(FromTLVError::ParserError)
-    }
-}
+impl_tlv_conversion!(false, ArpaTLV<'a>, TLVType::Arpa, 3);
 #[cfg(test)]
 #[test]
 fn test_arpa_tlv() {

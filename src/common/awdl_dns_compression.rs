@@ -5,6 +5,7 @@ use alloc::{
     string::{String, ToString},
 };
 
+#[non_exhaustive]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 /// Compressed dns-sd domains/services. Compression might be the wrong word though.

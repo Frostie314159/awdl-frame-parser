@@ -3,9 +3,7 @@ use bin_utils::*;
 use alloc::vec::Vec;
 use mac_parser::MACAddress;
 
-#[cfg(feature = "read")]
-use crate::tlvs::FromTLVError;
-use crate::tlvs::{TLVType, AWDLTLV};
+use crate::{impl_tlv_conversion, tlvs::TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -29,29 +27,12 @@ impl<'a> Write<'a> for SyncTreeTLV {
         self.tree.iter().flat_map(MACAddress::to_bytes).collect()
     }
 }
-#[cfg(feature = "read")]
-impl<'a> TryFrom<AWDLTLV<'a>> for SyncTreeTLV {
-    type Error = FromTLVError;
-    fn try_from(value: AWDLTLV<'a>) -> Result<Self, Self::Error> {
-        if value.tlv_type != TLVType::SynchronizationTree {
-            return Err(FromTLVError::IncorrectTlvType);
-        }
-        SyncTreeTLV::from_bytes(&mut value.tlv_data.iter().copied())
-            .map_err(FromTLVError::ParserError)
-    }
-}
-#[cfg(feature = "write")]
-impl From<SyncTreeTLV> for AWDLTLV<'_> {
-    fn from(value: SyncTreeTLV) -> Self {
-        AWDLTLV {
-            tlv_type: TLVType::SynchronizationTree,
-            tlv_data: value.to_bytes(),
-        }
-    }
-}
+impl_tlv_conversion!(false, SyncTreeTLV, TLVType::SynchronizationTree, 0);
+
 #[cfg(test)]
 #[test]
 fn test_sync_tree_tlv() {
+    use crate::tlvs::AWDLTLV;
     let bytes = include_bytes!("../../../test_bins/sync_tree_tlv.bin");
 
     let tlv = AWDLTLV::from_bytes(&mut bytes.iter().copied()).unwrap();

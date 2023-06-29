@@ -1,5 +1,5 @@
 use super::TLVType;
-use crate::{common::awdl_version::AWDLVersion, impl_tlv_conversion_fixed};
+use crate::{common::AWDLVersion, impl_tlv_conversion};
 use bin_utils::*;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -41,7 +41,7 @@ pub struct VersionTLV {
     /// The device class.
     pub device_class: AWDLDeviceClass,
 }
-impl_tlv_conversion_fixed!(VersionTLV, TLVType::Version, 2);
+impl_tlv_conversion!(true, VersionTLV, TLVType::Version, 2);
 
 #[cfg(feature = "read")]
 impl ReadFixed<2> for VersionTLV {
