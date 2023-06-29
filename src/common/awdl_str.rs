@@ -7,13 +7,22 @@ use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Default, PartialEq, Eq)]
+/// A string in the format used by AWDL.
+/// The characters are preceeded by a length byte.
 pub struct AWDLStr<'a> {
     string: Cow<'a, str>,
 }
 impl AWDLStr<'_> {
+    #[inline]
+    /// Returns the string as an iterator without reallocating.
     pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
         let chars = self.string.chars().map(|x| x as u8);
         core::iter::once(self.string.len() as u8).chain(chars)
+    }
+    #[inline]
+    /// Returns the length of the string in bytes, including the length byte.
+    pub fn total_len(&self) -> usize {
+        self.len() + 1
     }
 }
 #[cfg(feature = "read")]
@@ -29,12 +38,7 @@ impl Read for AWDLStr<'_> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for AWDLStr<'a> {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
-        let string_bytes = self.string.as_bytes();
-        [string_bytes.len() as u8]
-            .iter()
-            .chain(string_bytes.iter())
-            .copied()
-            .collect()
+        self.iter().collect()
     }
 }
 impl<'a> Deref for AWDLStr<'a> {
