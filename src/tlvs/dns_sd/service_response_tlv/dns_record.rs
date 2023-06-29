@@ -44,7 +44,8 @@ pub enum AWDLDnsRecord<'a> {
     },
 }
 impl AWDLDnsRecord<'_> {
-    pub fn record_type(&self) -> AWDLDnsRecordType {
+    #[inline]
+    pub const fn record_type(&self) -> AWDLDnsRecordType {
         match self {
             AWDLDnsRecord::PTR { .. } => AWDLDnsRecordType::PTR,
             AWDLDnsRecord::SRV { .. } => AWDLDnsRecordType::SRV,
@@ -66,12 +67,13 @@ impl Read for AWDLDnsRecord<'_> {
             },
             AWDLDnsRecordType::SRV => {
                 let mut header = try_take(&mut data, 6).map_err(ParserError::TooLittleData)?;
-            AWDLDnsRecord::SRV {
-                priority: u16::from_be_bytes(header.next_chunk().unwrap()),
-                weight: u16::from_be_bytes(header.next_chunk().unwrap()),
-                port: u16::from_be_bytes(header.next_chunk().unwrap()),
-                target: AWDLDnsName::from_bytes(&mut data)?,
-            }},
+                AWDLDnsRecord::SRV {
+                    priority: u16::from_be_bytes(header.next_chunk().unwrap()),
+                    weight: u16::from_be_bytes(header.next_chunk().unwrap()),
+                    port: u16::from_be_bytes(header.next_chunk().unwrap()),
+                    target: AWDLDnsName::from_bytes(&mut data)?,
+                }
+            }
             AWDLDnsRecordType::TXT => Self::TXT {
                 txt_record: (0..)
                     .map_while(|_| AWDLStr::from_bytes(&mut data).ok())
@@ -100,11 +102,7 @@ impl<'a> Write<'a> for AWDLDnsRecord<'a> {
                 static_bytes[2..4].copy_from_slice(&weight.to_be_bytes());
                 static_bytes[4..6].copy_from_slice(&port.to_be_bytes());
 
-                static_bytes
-                    .into_iter()
-                    .chain(target.iter())
-                    .into_iter()
-                    .collect()
+                static_bytes.into_iter().chain(target.iter()).collect()
             }
             AWDLDnsRecord::TXT { txt_record } => {
                 txt_record.iter().flat_map(AWDLStr::iter).collect()
