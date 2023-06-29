@@ -18,3 +18,9 @@
 - Introduced Service Response and Sync Tree TLVs
 ## 0.2.3
 - Updated Bumpalo from 3.12.1 to 3.13.0
+## 0.3.0
+- Added iterator based serialization API.
+- Introduced ServiceResponseTLV.
+## 0.3.1
+- Introduced HTCapabilitiesTLV.
+- Inlined functions.
