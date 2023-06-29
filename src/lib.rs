@@ -13,5 +13,7 @@ extern crate alloc;
 
 /// Structures related to AWDL action frames.
 pub mod action_frame;
+/// Structures, which are shared between multiple TLVs and frame types.
 pub mod common;
+/// Every TLV currently understood.
 pub mod tlvs;

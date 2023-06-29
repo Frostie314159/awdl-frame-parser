@@ -7,7 +7,7 @@ use try_take::try_take;
 use core::fmt::Debug;
 
 use crate::{
-    common::awdl_version::AWDLVersion,
+    common::AWDLVersion,
     tlvs::{TLVType, AWDLTLV},
 };
 
@@ -108,9 +108,8 @@ impl<'a> Write<'a> for AWDLActionFrame<'a> {
         header[4..8].copy_from_slice(&self.phy_tx_time.to_le_bytes());
         header[8..12].copy_from_slice(&self.target_tx_time.to_le_bytes());
         header
-            .iter()
-            .chain(self.tlvs.to_bytes().iter())
-            .copied()
+            .into_iter()
+            .chain(self.tlvs.to_bytes().iter().copied())
             .collect()
     }
 }
