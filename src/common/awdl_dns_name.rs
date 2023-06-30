@@ -67,7 +67,16 @@ impl Read for AWDLDnsName<'_> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for AWDLDnsName<'a> {
     fn to_bytes(&self) -> Cow<'a, [u8]> {
-        self.iter().collect()
+        if self.labels.len() == 1 {
+            let binding = self.labels[0].to_bytes();
+            let labels = binding.iter().copied();
+            let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
+            labels.chain(domain.into_iter()).collect()
+        } else {
+            let labels = self.labels.iter().flat_map(|x| x.to_bytes().to_vec());
+            let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
+            labels.chain(domain.into_iter()).collect()
+        }
     }
 }
 impl ToString for AWDLDnsName<'_> {
