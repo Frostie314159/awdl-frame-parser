@@ -1,7 +1,6 @@
 use bin_utils::*;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// This enum contains the three different types of channel encodings.
 pub enum ChannelEncoding {
     /// Simple channel encoding.
@@ -39,8 +38,7 @@ enum_to_int! {
 
 pub type ChannelSequenceInternal<T> = [T; 16];
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SupportChannel {
     Lower,
 
@@ -62,8 +60,7 @@ enum_to_int! {
     0x03,
     SupportChannel::Primary
 }
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// These are the channel bandwiths supported by AWDL.
 pub enum ChannelBandwidth {
     #[default]
@@ -84,8 +81,7 @@ enum_to_int! {
     0x03,
     ChannelBandwidth::FourtyMHz
 }
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// This is the band on which the channel lies.
 /// This could potentially be expanded to the 6GHz spectrum as well.
 pub enum Band {
@@ -106,8 +102,7 @@ enum_to_int! {
     0x02,
     Band::TwoPointFourGHz
 }
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// The Flags for the legacy channel encoding.
 pub struct LegacyFlags {
     pub support_channel: SupportChannel,

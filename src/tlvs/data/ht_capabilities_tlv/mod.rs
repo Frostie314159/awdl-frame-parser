@@ -4,6 +4,7 @@ pub mod ht_capabilities_info;
 use ampdu_parameters::*;
 use bin_utils::*;
 use ht_capabilities_info::*;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg(feature = "write")]

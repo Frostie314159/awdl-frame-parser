@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use bin_utils::*;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg(feature = "debug")]

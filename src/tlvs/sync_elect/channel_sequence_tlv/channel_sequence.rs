@@ -1,5 +1,5 @@
-#[cfg(feature = "write")]
 use bin_utils::*;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 use super::channel::*;

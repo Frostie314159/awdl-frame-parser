@@ -3,6 +3,7 @@ use bin_utils::*;
 #[cfg(feature = "write")]
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 use crate::common::{AWDLDnsName, AWDLStr};
@@ -39,13 +40,9 @@ pub enum AWDLDnsRecord<'a> {
         target: AWDLDnsName<'a>,
     },
     /// Pointer
-    PTR {
-        domain_name: AWDLDnsName<'a>,
-    },
+    PTR { domain_name: AWDLDnsName<'a> },
     /// Text
-    TXT {
-        txt_record: Vec<AWDLStr<'a>>,
-    },
+    TXT { txt_record: Vec<AWDLStr<'a>> },
 }
 impl AWDLDnsRecord<'_> {
     #[inline]

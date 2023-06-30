@@ -8,6 +8,7 @@ use bin_utils::*;
 
 #[cfg(feature = "write")]
 use alloc::borrow::Cow;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]

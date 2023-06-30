@@ -26,9 +26,7 @@ impl<'a> Read for ArpaTLV<'a> {
 #[cfg(feature = "write")]
 impl<'a> Write<'a> for ArpaTLV<'a> {
     fn to_bytes(&self) -> Cow<'a, [u8]> {
-        core::iter::once(0x03)
-            .chain(self.arpa.to_bytes().iter().copied())
-            .collect()
+        core::iter::once(0x03).chain(self.arpa.iter()).collect()
     }
 }
 impl_tlv_conversion!(false, ArpaTLV<'a>, TLVType::Arpa, 3);

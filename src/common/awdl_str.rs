@@ -3,6 +3,7 @@ use core::ops::{Deref, DerefMut};
 use bin_utils::*;
 
 use alloc::borrow::Cow;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]

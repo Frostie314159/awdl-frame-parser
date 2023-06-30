@@ -7,6 +7,7 @@ use channel::*;
 use channel_sequence::*;
 
 use bin_utils::*;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 use crate::{impl_tlv_conversion, tlvs::TLVType};

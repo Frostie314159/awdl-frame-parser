@@ -1,3 +1,4 @@
+#[cfg(feature = "debug")]
 use core::fmt::Debug;
 
 use bin_utils::*;

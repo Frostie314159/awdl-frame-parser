@@ -1,7 +1,9 @@
+#[cfg(feature = "read")]
 use core::ops::{BitAnd, Shl};
 
 use alloc::vec::Vec;
 use bin_utils::*;
+#[cfg(feature = "read")]
 use num_integer::Integer;
 
 use crate::{impl_tlv_conversion, tlvs::TLVType};
@@ -16,6 +18,7 @@ pub struct ServiceParametersTLV {
     pub encoded_values: Vec<u8>,
 }
 impl ServiceParametersTLV {
+    #[cfg(feature = "read")]
     #[inline]
     fn process_bitmask<T>(bitmask: &'_ T) -> impl Iterator<Item = (bool, u8)> + '_
     where

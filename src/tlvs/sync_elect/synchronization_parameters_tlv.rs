@@ -1,6 +1,6 @@
-#[cfg(feature = "write")]
 use bin_utils::*;
 use mac_parser::MACAddress;
+#[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg(feature = "read")]
@@ -34,6 +34,7 @@ pub struct SynchronizationParametersTLV {
     /// This isn't actually a TLV, but contains the functionality we need.
     pub channel_sequence: ChannelSequenceTLV,
 }
+#[cfg(feature = "read")]
 impl Read for SynchronizationParametersTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let mut fixed_data = try_take(data, 0x21).map_err(ParserError::TooLittleData)?;
@@ -63,6 +64,7 @@ impl Read for SynchronizationParametersTLV {
         })
     }
 }
+#[cfg(feature = "write")]
 impl<'a> Write<'a> for SynchronizationParametersTLV {
     fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
         let mut data = [0; 33];
