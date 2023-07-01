@@ -1,4 +1,7 @@
 # AWDL frame parser
+AWDL(**A**pple **W**ireless **D**irect **L**ink) is a protocol, for wireless P2P communication. AWDL is designed to be low latency and high bandwidth, while requiring only one chip for AWDL and "normal" WiFi. 
+This parser can read and write the network frames used by this protocol.
+For further information see this [stackoverflow post](https://stackoverflow.com/questions/19587701/what-is-awdl-apple-wireless-direct-link-and-how-does-it-work/28196009#28196009).
 ## Support
 ### Frame types
 * [x] action
@@ -15,7 +18,7 @@
 * [x] Synchronization tree
 * [ ] Data path state
 * [x] HT capabilities
-* [ ] VHT capibilities
+* [ ] IEEE 802.11 Container
 * [x] Service parameters
 * [x] Service response
 ## Features
