@@ -71,7 +71,7 @@ fn test_version_tlv() {
     assert_eq!(
         version_tlv,
         VersionTLV {
-            version: AWDLVersion { major: 3, minor: 4 },
+            version: AWDLVersion { major: 3, minor: 14 },
             device_class: AWDLDeviceClass::MacOS,
         }
     );
