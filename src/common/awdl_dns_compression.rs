@@ -1,10 +1,5 @@
 use bin_utils::*;
 
-use alloc::{
-    format,
-    string::{String, ToString},
-};
-
 #[non_exhaustive]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -78,30 +73,25 @@ enum_to_int! {
     0xC00E,
     AWDLDnsCompression::Ip4Arpa
 }
-macro_rules! string {
-    ($str:expr) => {
-        stringify!($expr).to_string()
-    };
-}
-impl ToString for AWDLDnsCompression {
-    fn to_string(&self) -> String {
+impl AWDLDnsCompression {
+    pub fn to_string(&self) -> &'static str {
         match self {
-            AWDLDnsCompression::Null => string!(""),
-            AWDLDnsCompression::AirPlayTcpLocal => string!("_airplay._tcp.local"),
-            AWDLDnsCompression::AirPlayUdpLocal => string!("_airplay._udp.local"),
-            AWDLDnsCompression::AirPlay => string!("_airplay"),
-            AWDLDnsCompression::RaopTcpLocal => string!("_raop._tcp.local"),
-            AWDLDnsCompression::RaopUdpLocal => string!("_raop._udp.local"),
-            AWDLDnsCompression::Raop => string!("raop"),
-            AWDLDnsCompression::AirDropTcpLocal => string!("_airdrop._tcp.local"),
-            AWDLDnsCompression::AirDropUdpLocal => string!("_airdrop._udp.local"),
-            AWDLDnsCompression::AirDrop => string!("_airdrop"),
-            AWDLDnsCompression::TcpLocal => string!("_tcp.local"),
-            AWDLDnsCompression::UdpLocal => string!("_udp.local"),
-            AWDLDnsCompression::Local => string!("local"),
-            AWDLDnsCompression::Ip6Arpa => string!("ip6.arpa"),
-            AWDLDnsCompression::Ip4Arpa => string!("ip4.arpa"),
-            AWDLDnsCompression::Unknown(v) => format!("unknown: {v}"),
+            AWDLDnsCompression::Null => "",
+            AWDLDnsCompression::AirPlayTcpLocal => "_airplay._tcp.local",
+            AWDLDnsCompression::AirPlayUdpLocal => "_airplay._udp.local",
+            AWDLDnsCompression::AirPlay => "_airplay",
+            AWDLDnsCompression::RaopTcpLocal => "_raop._tcp.local",
+            AWDLDnsCompression::RaopUdpLocal => "_raop._udp.local",
+            AWDLDnsCompression::Raop => "raop",
+            AWDLDnsCompression::AirDropTcpLocal => "_airdrop._tcp.local",
+            AWDLDnsCompression::AirDropUdpLocal => "_airdrop._udp.local",
+            AWDLDnsCompression::AirDrop => "_airdrop",
+            AWDLDnsCompression::TcpLocal => "_tcp.local",
+            AWDLDnsCompression::UdpLocal => "_udp.local",
+            AWDLDnsCompression::Local => "local",
+            AWDLDnsCompression::Ip6Arpa => "ip6.arpa",
+            AWDLDnsCompression::Ip4Arpa => "ip4.arpa",
+            AWDLDnsCompression::Unknown(_) => "Unknown Compression",
         }
     }
 }

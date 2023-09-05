@@ -1,7 +1,5 @@
 use bin_utils::*;
 
-#[cfg(feature = "write")]
-use alloc::borrow::Cow;
 use alloc::vec::Vec;
 #[cfg(feature = "read")]
 use try_take::try_take;
@@ -31,20 +29,20 @@ enum_to_int! {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
 /// A DNS record as encoded by AWDL.
-pub enum AWDLDnsRecord<'a> {
+pub enum AWDLDnsRecord {
     /// Service
     SRV {
         priority: u16,
         weight: u16,
         port: u16,
-        target: AWDLDnsName<'a>,
+        target: AWDLDnsName,
     },
     /// Pointer
-    PTR { domain_name: AWDLDnsName<'a> },
+    PTR { domain_name: AWDLDnsName },
     /// Text
-    TXT { txt_record: Vec<AWDLStr<'a>> },
+    TXT { txt_record: Vec<AWDLStr> },
 }
-impl AWDLDnsRecord<'_> {
+impl AWDLDnsRecord {
     #[inline]
     /// Returns the [record type](AWDLDnsRecordType).
     pub const fn record_type(&self) -> AWDLDnsRecordType {
@@ -56,7 +54,7 @@ impl AWDLDnsRecord<'_> {
     }
 }
 #[cfg(feature = "read")]
-impl Read for AWDLDnsRecord<'_> {
+impl Read for AWDLDnsRecord {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let mut header = try_take(data, 5).map_err(ParserError::TooLittleData)?;
         let record_type = header.next().unwrap().into();
@@ -86,8 +84,8 @@ impl Read for AWDLDnsRecord<'_> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for AWDLDnsRecord<'a> {
-    fn to_bytes(&self) -> Cow<'a, [u8]> {
+impl Write for AWDLDnsRecord {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let mut header = [0x00; 5];
         header[0] = self.record_type().into();
 
@@ -111,6 +109,6 @@ impl<'a> Write<'a> for AWDLDnsRecord<'a> {
             }
         };
         header[1..3].copy_from_slice(&(bytes.len() as u16).to_le_bytes());
-        header.into_iter().chain(bytes.iter().copied()).collect()
+        header.into_iter().chain(bytes).collect()
     }
 }

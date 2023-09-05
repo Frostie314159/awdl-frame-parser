@@ -1,9 +1,8 @@
-use bin_utils::*;
-
 use alloc::vec::Vec;
+use bin_utils::*;
 use mac_parser::MACAddress;
 
-use crate::{impl_tlv_conversion, tlvs::TLVType};
+use crate::tlvs::{impl_tlv_conversion, TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -26,8 +25,8 @@ impl Read for SyncTreeTLV {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for SyncTreeTLV {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+impl Write for SyncTreeTLV {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         self.tree.iter().flat_map(MACAddress::to_bytes).collect()
     }
 }

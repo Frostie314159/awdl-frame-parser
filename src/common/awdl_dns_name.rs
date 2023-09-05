@@ -8,21 +8,18 @@ use alloc::{
     vec::Vec,
 };
 
-#[cfg(feature = "write")]
-use alloc::borrow::Cow;
-
 use super::{awdl_dns_compression::AWDLDnsCompression, awdl_str::AWDLStr};
 
 #[derive(Clone, Default, PartialEq, Eq)]
 /// A hostname combined with the [domain](AWDLDnsCompression).
-pub struct AWDLDnsName<'a> {
+pub struct AWDLDnsName {
     /// The labels of the peer.
-    pub labels: Vec<AWDLStr<'a>>,
+    pub labels: Vec<AWDLStr>,
 
     /// The domain in [compressed form](AWDLDnsCompression).
     pub domain: AWDLDnsCompression,
 }
-impl AWDLDnsName<'_> {
+impl AWDLDnsName {
     #[inline]
     /// Turns the string into an Iterator over bytes without allocating.
     pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
@@ -46,7 +43,7 @@ impl AWDLDnsName<'_> {
     }
 }
 #[cfg(feature = "read")]
-impl Read for AWDLDnsName<'_> {
+impl Read for AWDLDnsName {
     fn from_bytes<'a>(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         if data.len() < 3 {
             return Err(ParserError::TooLittleData(3 - data.len()));
@@ -65,30 +62,30 @@ impl Read for AWDLDnsName<'_> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for AWDLDnsName<'a> {
-    fn to_bytes(&self) -> Cow<'a, [u8]> {
+impl Write for AWDLDnsName {
+    fn to_bytes(&self) -> Vec<u8> {
         if self.labels.len() == 1 {
             let binding = self.labels[0].to_bytes();
             let labels = binding.iter().copied();
             let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain.into_iter()).collect()
+            labels.chain(domain).collect()
         } else {
             let labels = self.labels.iter().flat_map(|x| x.to_bytes().to_vec());
             let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain.into_iter()).collect()
+            labels.chain(domain).collect()
         }
     }
 }
-impl ToString for AWDLDnsName<'_> {
+impl ToString for AWDLDnsName {
     fn to_string(&self) -> String {
         self.labels
             .iter()
             .fold(String::new(), |acc, x| acc + x + ".")
-            + &self.domain.to_string()
+            + self.domain.to_string()
     }
 }
 #[cfg(feature = "debug")]
-impl Debug for AWDLDnsName<'_> {
+impl Debug for AWDLDnsName {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&self.to_string())
     }
@@ -97,7 +94,7 @@ impl Debug for AWDLDnsName<'_> {
 #[test]
 fn test_dns_name() {
     use alloc::vec;
-    let bytes: [u8; 7] = [0x04, 0x61, 0x77, 0x64, 0x6C, 0xc0, 0x0c];
+    let bytes = vec![0x04, 0x61, 0x77, 0x64, 0x6C, 0xc0, 0x0c];
     let dns_name = <AWDLDnsName as Read>::from_bytes(&mut bytes.iter().copied()).unwrap();
     assert_eq!(
         dns_name,
@@ -107,8 +104,8 @@ fn test_dns_name() {
         }
     );
     let dns_name_bytes = dns_name.to_bytes();
-    assert_eq!(<&[u8] as Into<Cow<[u8]>>>::into(&bytes), dns_name_bytes);
-    let bytes: [u8; 12] = [
+    assert_eq!(bytes, dns_name_bytes);
+    let bytes = vec![
         0x04, 0x61, 0x77, 0x64, 0x6C, 0x04, 0x61, 0x77, 0x64, 0x6C, 0xc0, 0x0c,
     ];
     let dns_name = AWDLDnsName::from_bytes(&mut bytes.iter().copied()).unwrap();
@@ -120,5 +117,5 @@ fn test_dns_name() {
         }
     );
     let dns_name_bytes = dns_name.to_bytes();
-    assert_eq!(dns_name_bytes, Cow::Borrowed(bytes.as_slice()));
+    assert_eq!(bytes, dns_name_bytes);
 }

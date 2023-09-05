@@ -65,10 +65,10 @@ impl ReadCtx<&ChannelEncoding> for ChannelSequence {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for ChannelSequence {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+impl Write for ChannelSequence {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         match self {
-            ChannelSequence::Simple(chan_seq) => chan_seq.to_vec().into(),
+            ChannelSequence::Simple(chan_seq) => chan_seq.to_vec(),
             ChannelSequence::Legacy(chan_seq) => chan_seq
                 .iter()
                 .copied()

@@ -11,7 +11,7 @@ fn main() {
     let af = AWDLActionFrame::from_bytes(&mut bytes.iter().copied()).unwrap();
 
     println!("{af:#?}");
-    assert_eq!(af.to_bytes(), <&[u8] as Into<Cow<[u8]>>>::into(bytes));
+    assert_eq!(af.to_bytes(), bytes.to_vec());
 
     let version = af.get_tlvs(TLVType::Version).unwrap()[0].clone(); // Since a TLV could be present multiple times we have to this.
     let version: VersionTLV = version.try_into().unwrap();

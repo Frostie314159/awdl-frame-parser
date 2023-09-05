@@ -1,5 +1,7 @@
-use super::TLVType;
-use crate::{common::AWDLVersion, impl_tlv_conversion};
+use crate::{
+    common::AWDLVersion,
+    tlvs::{impl_tlv_conversion, TLVType},
+};
 use bin_utils::*;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -62,16 +64,9 @@ impl WriteFixed<2> for VersionTLV {
 #[cfg(test)]
 #[test]
 fn test_version_tlv() {
-    use crate::tlvs::AWDLTLV;
+    let bytes = [0x3e, 0x01];
 
-    use super::TLV;
-
-    let bytes = include_bytes!("../../../test_bins/version_tlv.bin");
-
-    let tlv = TLV::from_bytes(&mut bytes.iter().copied()).unwrap();
-
-    let version_tlv = VersionTLV::try_from(tlv.clone()).unwrap();
-    assert_eq!(tlv, <VersionTLV as Into<AWDLTLV>>::into(version_tlv));
+    let version_tlv = VersionTLV::from_bytes(&bytes).unwrap();
 
     assert_eq!(
         version_tlv,
@@ -80,5 +75,5 @@ fn test_version_tlv() {
             device_class: AWDLDeviceClass::MacOS,
         }
     );
-    assert_eq!(version_tlv.to_bytes(), bytes[3..]);
+    assert_eq!(version_tlv.to_bytes(), bytes);
 }

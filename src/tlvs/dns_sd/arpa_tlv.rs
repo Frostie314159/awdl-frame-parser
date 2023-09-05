@@ -1,19 +1,19 @@
 use bin_utils::*;
 
-use crate::tlvs::TLVType;
-use crate::{common::AWDLDnsName, impl_tlv_conversion};
-#[cfg(feature = "write")]
-use alloc::borrow::Cow;
+use crate::{
+    common::AWDLDnsName,
+    tlvs::{impl_tlv_conversion, TLVType},
+};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Default, PartialEq, Eq)]
 /// A TLV containing the hostname of the peer. Used for reverse DNS.
-pub struct ArpaTLV<'a> {
+pub struct ArpaTLV {
     /// The actual arpa data.
-    pub arpa: AWDLDnsName<'a>,
+    pub arpa: AWDLDnsName,
 }
 #[cfg(feature = "read")]
-impl<'a> Read for ArpaTLV<'a> {
+impl Read for ArpaTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let flags = data.next().ok_or(ParserError::TooLittleData(1))?; // Always 0x03.
         if flags != 0x03 {
@@ -24,12 +24,12 @@ impl<'a> Read for ArpaTLV<'a> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for ArpaTLV<'a> {
-    fn to_bytes(&self) -> Cow<'a, [u8]> {
-        core::iter::once(0x03).chain(self.arpa.to_bytes().iter().copied()).collect()
+impl Write for ArpaTLV {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
+        core::iter::once(0x03).chain(self.arpa.to_bytes()).collect()
     }
 }
-impl_tlv_conversion!(false, ArpaTLV<'a>, TLVType::Arpa, 3);
+impl_tlv_conversion!(false, ArpaTLV, TLVType::Arpa, 3);
 #[cfg(test)]
 #[test]
 fn test_arpa_tlv() {

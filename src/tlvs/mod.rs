@@ -18,9 +18,12 @@ use bin_utils::*;
 use tlv_rs::TLV;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 /// The type of the TLV.
 pub enum TLVType {
+    #[doc(hidden)]
+    #[default]
+    Null,
     /// The service parameters.
     ServiceResponse,
 
@@ -63,6 +66,8 @@ enum_to_int! {
     u8,
     TLVType,
 
+    0x00,
+    TLVType::Null,
     0x02,
     TLVType::ServiceResponse,
     0x04,
@@ -88,7 +93,7 @@ enum_to_int! {
     0x18,
     TLVType::ElectionParametersV2
 }
-pub type AWDLTLV<'a> = TLV<'a, TLVType>;
+pub type AWDLTLV = TLV<u8, TLVType, u16, false>;
 #[cfg(feature = "read")]
 #[derive(Debug)]
 /// Errors that can occur while converting an AWDLTLV to a specific type.
@@ -98,48 +103,48 @@ pub enum FromTLVError {
     NoData,
     ParserError(ParserError),
 }
-#[macro_export]
-#[doc(hidden)]
 macro_rules! impl_tlv_conversion {
     (true, $ntype:ty, $tlv_type:expr, $tlv_length:expr) => {
         #[cfg(feature = "write")]
-        impl From<$ntype> for $crate::tlvs::AWDLTLV<'_> {
+        impl From<$ntype> for $crate::tlvs::AWDLTLV {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
                     tlv_data: value.to_bytes().to_vec().into(),
+                    ..core::default::Default::default()
                 }
             }
         }
         #[cfg(feature = "read")]
-        impl TryFrom<$crate::tlvs::AWDLTLV<'_>> for $ntype {
+        impl TryFrom<$crate::tlvs::AWDLTLV> for $ntype {
             type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV<'_>) -> Result<Self, Self::Error> {
+            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
                 if value.tlv_data.len() != $tlv_length {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
                 }
                 if value.tlv_type != $tlv_type {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
                 }
-                Self::from_bytes(&value.tlv_data.into_iter().copied().next_chunk().unwrap())
+                Self::from_bytes(&value.tlv_data.into_iter().next_chunk().unwrap())
                     .map_err($crate::tlvs::FromTLVError::ParserError)
             }
         }
     };
     (false, $ntype:ident <$lt:lifetime>, $tlv_type:expr, $tlv_length:expr) => {
         #[cfg(feature = "write")]
-        impl<'a> From<$ntype<$lt>> for $crate::tlvs::AWDLTLV<'a> {
+        impl<'a> From<$ntype<$lt>> for $crate::tlvs::AWDLTLV {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
                     tlv_data: value.to_bytes().to_vec().into(),
+                    ..core::default::Default::default()
                 }
             }
         }
         #[cfg(feature = "read")]
-        impl<'a> TryFrom<$crate::tlvs::AWDLTLV<'a>> for $ntype<$lt> {
+        impl<'a> TryFrom<$crate::tlvs::AWDLTLV> for $ntype<$lt> {
             type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV<'a>) -> Result<Self, Self::Error> {
+            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
                 if value.tlv_data.len() < $tlv_length {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
                 }
@@ -153,49 +158,52 @@ macro_rules! impl_tlv_conversion {
     };
     (false, $ntype:ident, $tlv_type:expr, 0) => {
         #[cfg(feature = "write")]
-        impl<'a> From<$ntype> for $crate::tlvs::AWDLTLV<'a> {
+        impl<'a> From<$ntype> for $crate::tlvs::AWDLTLV {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
                     tlv_data: value.to_bytes().to_vec().into(),
+                    ..core::default::Default::default()
                 }
             }
         }
         #[cfg(feature = "read")]
-        impl<'a> TryFrom<$crate::tlvs::AWDLTLV<'a>> for $ntype {
+        impl<'a> TryFrom<$crate::tlvs::AWDLTLV> for $ntype {
             type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV<'a>) -> Result<Self, Self::Error> {
+            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
                 if value.tlv_type != $tlv_type {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
                 }
-                Self::from_bytes(&mut value.tlv_data.into_iter().copied())
+                Self::from_bytes(&mut value.tlv_data.into_iter())
                     .map_err($crate::tlvs::FromTLVError::ParserError)
             }
         }
     };
     (false, $ntype:ident, $tlv_type:expr, $tlv_length:expr) => {
         #[cfg(feature = "write")]
-        impl<'a> From<$ntype> for $crate::tlvs::AWDLTLV<'a> {
+        impl<'a> From<$ntype> for $crate::tlvs::AWDLTLV {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
                     tlv_data: value.to_bytes().to_vec().into(),
+                    ..core::default::Default::default()
                 }
             }
         }
         #[cfg(feature = "read")]
-        impl<'a> TryFrom<$crate::tlvs::AWDLTLV<'a>> for $ntype {
+        impl<'a> TryFrom<$crate::tlvs::AWDLTLV> for $ntype {
             type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV<'a>) -> Result<Self, Self::Error> {
+            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
                 if value.tlv_data.len() < $tlv_length {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
                 }
                 if value.tlv_type != $tlv_type {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
                 }
-                Self::from_bytes(&mut value.tlv_data.into_iter().copied())
+                Self::from_bytes(&mut value.tlv_data.into_iter())
                     .map_err($crate::tlvs::FromTLVError::ParserError)
             }
         }
     };
 }
+pub(crate) use impl_tlv_conversion;

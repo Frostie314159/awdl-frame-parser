@@ -10,7 +10,7 @@ use bin_utils::*;
 #[cfg(feature = "read")]
 use try_take::try_take;
 
-use crate::{impl_tlv_conversion, tlvs::TLVType};
+use crate::tlvs::{impl_tlv_conversion, TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -56,8 +56,8 @@ impl Read for ChannelSequenceTLV {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for ChannelSequenceTLV {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+impl Write for ChannelSequenceTLV {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let binding = [
             0x0f,
             self.channel_encoding.into(),
@@ -77,6 +77,7 @@ impl<'a> Write<'a> for ChannelSequenceTLV {
     }
 }
 impl_tlv_conversion!(false, ChannelSequenceTLV, TLVType::ChannelSequence, 9);
+
 #[cfg(test)]
 #[test]
 fn test_channel_sequence_tlv() {

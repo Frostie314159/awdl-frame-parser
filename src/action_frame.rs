@@ -35,7 +35,7 @@ enum_to_int! {
 
 #[derive(Clone, PartialEq, Eq)]
 /// An AWDL AF(**A**ction **F**rame).
-pub struct AWDLActionFrame<'a> {
+pub struct AWDLActionFrame {
     /**
      * This is the version of the AWDL protocol.
      * This is, for an unknown reason, always 1.0, the actual version is found in the Version TLV.
@@ -58,9 +58,9 @@ pub struct AWDLActionFrame<'a> {
 
     //TLVs
     /// The TLVs contained in the action frame.
-    pub tlvs: Vec<AWDLTLV<'a>>,
+    pub tlvs: Vec<AWDLTLV>,
 }
-impl AWDLActionFrame<'_> {
+impl AWDLActionFrame {
     pub fn get_tlvs(&self, tlv_type: TLVType) -> Option<Vec<&AWDLTLV>> {
         return Some(
             self.tlvs
@@ -71,7 +71,7 @@ impl AWDLActionFrame<'_> {
     }
 }
 #[cfg(feature = "read")]
-impl<'a> Read for AWDLActionFrame<'a> {
+impl Read for AWDLActionFrame {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let mut header = try_take(data, 0xC).map_err(ParserError::TooLittleData)?;
 
@@ -87,7 +87,7 @@ impl<'a> Read for AWDLActionFrame<'a> {
         let phy_tx_time = u32::from_le_bytes(header.next_chunk().unwrap());
         let target_tx_time = u32::from_le_bytes(header.next_chunk().unwrap());
 
-        let tlvs = <Vec<AWDLTLV<'_>> as Read>::from_bytes(data)?;
+        let tlvs = <Vec<AWDLTLV> as Read>::from_bytes(data)?;
 
         Ok(Self {
             awdl_version,
@@ -99,8 +99,8 @@ impl<'a> Read for AWDLActionFrame<'a> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for AWDLActionFrame<'a> {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+impl Write for AWDLActionFrame {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let mut header = [0x00; 12];
 
         header[0] = 0x08;
@@ -108,14 +108,11 @@ impl<'a> Write<'a> for AWDLActionFrame<'a> {
         header[2] = self.subtype.into();
         header[4..8].copy_from_slice(&self.phy_tx_time.to_le_bytes());
         header[8..12].copy_from_slice(&self.target_tx_time.to_le_bytes());
-        header
-            .into_iter()
-            .chain(self.tlvs.to_bytes().iter().copied())
-            .collect()
+        header.into_iter().chain(self.tlvs.to_bytes()).collect()
     }
 }
 #[cfg(feature = "debug")]
-impl Debug for AWDLActionFrame<'_> {
+impl Debug for AWDLActionFrame {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("AWDLActionFrame")
             .field("awdl_version", &self.awdl_version)
@@ -124,11 +121,7 @@ impl Debug for AWDLActionFrame<'_> {
             .field("target_tx_time", &self.target_tx_time)
             .field(
                 "tlvs",
-                &self
-                    .tlvs
-                    .iter()
-                    .map(|x| x.tlv_type)
-                    .collect::<alloc::borrow::Cow<[TLVType]>>(),
+                &self.tlvs.iter().map(|x| x.tlv_type).collect::<Vec<_>>(),
             )
             .finish()
     }

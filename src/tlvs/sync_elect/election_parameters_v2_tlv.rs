@@ -1,9 +1,7 @@
 use bin_utils::*;
 use mac_parser::MACAddress;
 
-use crate::impl_tlv_conversion;
-
-use crate::tlvs::TLVType;
+use crate::tlvs::{impl_tlv_conversion, TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]

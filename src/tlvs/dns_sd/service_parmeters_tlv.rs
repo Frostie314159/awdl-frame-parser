@@ -1,12 +1,10 @@
-#[cfg(feature = "read")]
-use core::ops::{BitAnd, Shl};
-
 use alloc::vec::Vec;
 use bin_utils::*;
-#[cfg(feature = "read")]
-use num_integer::Integer;
 
-use crate::{impl_tlv_conversion, tlvs::TLVType};
+use crate::{
+    common::process_bitmask,
+    tlvs::{impl_tlv_conversion, TLVType},
+};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -17,23 +15,6 @@ pub struct ServiceParametersTLV {
     /// No idea honestly.
     pub encoded_values: Vec<u8>,
 }
-impl ServiceParametersTLV {
-    #[cfg(feature = "read")]
-    #[inline]
-    fn process_bitmask<T>(bitmask: &'_ T) -> impl Iterator<Item = (bool, u8)> + '_
-    where
-        T: Integer + BitAnd<<T as Shl>::Output> + Copy + From<u8> + Shl,
-        <T as Shl>::Output: Copy,
-        <T as BitAnd<<T as Shl>::Output>>::Output: PartialEq<T>,
-    {
-        (0..(core::mem::size_of::<T>() * 8) as u8)
-            .map(|bit| {
-                let mask = T::from(1) << T::from(bit);
-                *bitmask & mask != T::from(0)
-            })
-            .zip(0..)
-    }
-}
 #[cfg(feature = "read")]
 impl Read for ServiceParametersTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
@@ -43,10 +24,10 @@ impl Read for ServiceParametersTLV {
         let mut data = data.skip(3); // Padding
         let sui = u16::from_le_bytes(data.next_chunk().unwrap());
         let offsets = u32::from_le_bytes(data.next_chunk().unwrap());
-        let encoded_values = Self::process_bitmask(&offsets)
-            .filter_map(|(set, bit)| if set { Some(bit << 3) } else { None })
+        let encoded_values = process_bitmask(&offsets)
+            .filter_map(|(set, bit)| if set { Some(bit << 3) } else { None }) // times 8
             .zip(
-                data.flat_map(|x| Self::process_bitmask(&x).next_chunk::<8>().unwrap())
+                data.flat_map(|x| process_bitmask(&x).next_chunk::<8>().unwrap())
                     .filter_map(|(set, bit)| if set { Some(bit) } else { None }),
             )
             .map(|(offset, value)| offset + value)
@@ -58,8 +39,8 @@ impl Read for ServiceParametersTLV {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for ServiceParametersTLV {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+impl Write for ServiceParametersTLV {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut offsets = 0u32;
         let mut values = [0u8; 32];
         self.encoded_values.iter().for_each(|x| {
@@ -69,9 +50,9 @@ impl<'a> Write<'a> for ServiceParametersTLV {
         });
         [0x00; 3]
             .into_iter()
-            .chain(self.sui.to_le_bytes().into_iter())
-            .chain(offsets.to_le_bytes().into_iter())
-            .chain(values.into_iter().filter(|x| *x != 0))
+            .chain(self.sui.to_le_bytes())
+            .chain(offsets.to_le_bytes())
+            .chain(values.into_iter().filter(|x| x != &0))
             .collect()
     }
 }
@@ -79,8 +60,6 @@ impl_tlv_conversion!(false, ServiceParametersTLV, TLVType::ServiceParameters, 8)
 #[cfg(test)]
 #[test]
 fn test_service_parameters_tlv() {
-    use alloc::borrow::ToOwned;
-
     let bytes = include_bytes!("../../../test_bins/service_parameters_tlv.bin")[3..].to_vec();
 
     let service_parameters_tlv =
@@ -92,8 +71,5 @@ fn test_service_parameters_tlv() {
             encoded_values: alloc::vec![100, 111, 128, 142, 150, 173, 237]
         }
     );
-    assert_eq!(
-        bytes.as_slice().to_owned(),
-        service_parameters_tlv.to_bytes().into_owned()
-    );
+    assert_eq!(bytes, service_parameters_tlv.to_bytes());
 }

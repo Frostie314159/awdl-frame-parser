@@ -1,7 +1,7 @@
 use bin_utils::*;
 use mac_parser::MACAddress;
 
-use crate::{impl_tlv_conversion, tlvs::TLVType};
+use crate::tlvs::{impl_tlv_conversion, TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
@@ -33,7 +33,7 @@ impl ReadFixed<21> for ElectionParametersTLV {
         let id = u16::from_le_bytes(data.next_chunk().unwrap()); // In reality this is always zero.
         let distance_to_master = data.next().unwrap();
         let _ = data.next();
-        let master_address = MACAddress::from_bytes(&data.next_chunk::<6>().unwrap()).unwrap(); // Infallible
+        let master_address = MACAddress::from_bytes(&data.next_chunk().unwrap())?; // Infallible
         let master_metric = u32::from_le_bytes(data.next_chunk().unwrap());
         let self_metric = u32::from_le_bytes(data.next_chunk().unwrap());
         Ok(Self {

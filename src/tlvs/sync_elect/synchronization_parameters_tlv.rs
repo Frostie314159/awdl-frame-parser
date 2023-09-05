@@ -65,8 +65,8 @@ impl Read for SynchronizationParametersTLV {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for SynchronizationParametersTLV {
-    fn to_bytes(&self) -> alloc::borrow::Cow<'a, [u8]> {
+impl Write for SynchronizationParametersTLV {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let mut data = [0; 33];
 
         data[0] = self.next_channel;
@@ -88,16 +88,15 @@ impl<'a> Write<'a> for SynchronizationParametersTLV {
         data[29..31].copy_from_slice(&self.aw_seq_number.to_le_bytes());
         data[31..33].copy_from_slice(&self.ap_beacon_alignment_delta.to_le_bytes());
 
-        data.iter()
-            .chain(self.channel_sequence.to_bytes().iter())
-            .copied()
+        data.into_iter()
+            .chain(self.channel_sequence.to_bytes())
             .collect()
     }
 }
 #[cfg(feature = "read")]
-impl TryFrom<AWDLTLV<'_>> for SynchronizationParametersTLV {
+impl TryFrom<AWDLTLV> for SynchronizationParametersTLV {
     type Error = FromTLVError;
-    fn try_from(value: AWDLTLV<'_>) -> Result<Self, Self::Error> {
+    fn try_from(value: AWDLTLV) -> Result<Self, Self::Error> {
         if value.tlv_type != TLVType::SynchronizationParameters {
             return Err(FromTLVError::IncorrectTlvType);
         }
@@ -109,11 +108,12 @@ impl TryFrom<AWDLTLV<'_>> for SynchronizationParametersTLV {
     }
 }
 #[cfg(feature = "write")]
-impl From<SynchronizationParametersTLV> for AWDLTLV<'_> {
+impl From<SynchronizationParametersTLV> for AWDLTLV {
     fn from(value: SynchronizationParametersTLV) -> Self {
         Self {
             tlv_type: TLVType::SynchronizationParameters,
-            tlv_data: value.to_bytes().to_vec().into(),
+            tlv_data: value.to_bytes(),
+            ..Default::default()
         }
     }
 }
