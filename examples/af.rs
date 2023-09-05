@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use awdl_frame_parser::{
     action_frame::AWDLActionFrame,
     tlvs::{version::VersionTLV, TLVType, AWDLTLV},

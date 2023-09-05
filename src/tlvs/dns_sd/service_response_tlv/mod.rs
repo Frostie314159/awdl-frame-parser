@@ -1,28 +1,29 @@
 pub mod dns_record;
 
-use crate::{common::AWDLDnsName, impl_tlv_conversion, tlvs::TLVType};
+use crate::{
+    common::AWDLDnsName,
+    tlvs::{impl_tlv_conversion, TLVType},
+};
 
 use dns_record::AWDLDnsRecord;
 
 use bin_utils::*;
 
-#[cfg(feature = "write")]
-use alloc::borrow::Cow;
 #[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
 /// This TLV contains data about services offered by the peer.
-pub struct ServiceResponseTLV<'a> {
+pub struct ServiceResponseTLV {
     /// The fullname of the service.
-    pub name: AWDLDnsName<'a>,
+    pub name: AWDLDnsName,
 
     /// The DNS record contained in this response.
-    pub record: AWDLDnsRecord<'a>,
+    pub record: AWDLDnsRecord,
 }
 #[cfg(feature = "read")]
-impl Read for ServiceResponseTLV<'_> {
+impl Read for ServiceResponseTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let length = u16::from_le_bytes(
             try_take(data, 2)
@@ -44,8 +45,8 @@ impl Read for ServiceResponseTLV<'_> {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for ServiceResponseTLV<'a> {
-    fn to_bytes(&self) -> Cow<'a, [u8]> {
+impl Write for ServiceResponseTLV {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let name_length = (self.name.len() as u16 + 1).to_le_bytes();
         let record = self.record.to_bytes();
         name_length
@@ -55,10 +56,10 @@ impl<'a> Write<'a> for ServiceResponseTLV<'a> {
             .collect()
     }
 }
-impl_tlv_conversion!(false, ServiceResponseTLV<'a>, TLVType::ServiceResponse, 9);
+impl_tlv_conversion!(false, ServiceResponseTLV, TLVType::ServiceResponse, 9);
 #[cfg(test)]
 mod service_response_tests {
-    use alloc::{borrow::Cow, vec};
+    use alloc::vec;
 
     use bin_utils::*;
 
@@ -91,10 +92,7 @@ mod service_response_tests {
             }
         );
 
-        assert_eq!(
-            service_response_tlv.to_bytes(),
-            <&[u8] as Into<Cow<[u8]>>>::into(bytes.as_slice())
-        );
+        assert_eq!(service_response_tlv.to_bytes(), bytes);
     }
     #[test]
     fn test_service_response_tlv_srv() {
@@ -122,10 +120,7 @@ mod service_response_tests {
                 }
             }
         );
-        assert_eq!(
-            service_response_tlv.to_bytes(),
-            <&[u8] as Into<Cow<[u8]>>>::into(bytes.as_slice())
-        );
+        assert_eq!(service_response_tlv.to_bytes(), bytes);
     }
     #[test]
     fn test_service_response_tlv_txt() {
@@ -147,9 +142,6 @@ mod service_response_tests {
                 }
             }
         );
-        assert_eq!(
-            service_response_tlv.to_bytes(),
-            <&[u8] as Into<Cow<[u8]>>>::into(bytes.as_slice())
-        );
+        assert_eq!(service_response_tlv.to_bytes(), bytes);
     }
 }
