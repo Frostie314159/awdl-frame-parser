@@ -3,7 +3,7 @@ use awdl_frame_parser::{
     tlvs::{
         data::DataPathStateTLV,
         dns_sd::{ArpaTLV, ServiceParametersTLV, ServiceResponseTLV},
-        sync_elect::{ChannelSequenceTLV, SyncTreeTLV}
+        sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
     },
 };
 use bin_utils::{Read, Write};

@@ -1,5 +1,22 @@
 use bin_utils::*;
 
+use crate::common::{bit, check_bit, set_bit};
+
+const FLAG_HT_LDPC_CODING_CAPABILITY: u16 = bit!(0);
+const FLAG_SUPPORT_CHANNEL_WIDTH: u16 = bit!(1);
+const FLAG_SM_POWER_SAVE: u16 = bit!(2, 3);
+const FLAG_GREEN_FIELD: u16 = bit!(4);
+const FLAG_SHORT_GI_20MHZ: u16 = bit!(5);
+const FLAG_SHORT_GI_40MHZ: u16 = bit!(6);
+const FLAG_TX_STBC: u16 = bit!(7);
+const FLAG_RX_STBC: u16 = bit!(8, 9);
+const FLAG_DELAYED_BLOCK_ACK: u16 = bit!(10);
+const FLAG_MAX_A_MSDU_LENGTH: u16 = bit!(11);
+const FLAG_DSSS_40MHZ: u16 = bit!(12);
+const FLAG_PSMP: u16 = bit!(13);
+const FLAG_40MHZ_INTOLERANT: u16 = bit!(14);
+const FLAG_TXOP_PROTECTION_SUPPORT: u16 = bit!(15);
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum SmPwSave {
@@ -75,24 +92,24 @@ pub struct HTCapabilitiesInfo {
 impl From<u16> for HTCapabilitiesInfo {
     fn from(value: u16) -> Self {
         Self {
-            ldpc_coding_capability: value & 0x1 != 0x0,
-            support_channel_width: value & 0x2 != 0x0,
-            sm_power_save: (((value & 0b0000_0000_0000_1100) >> 2) as u8).into(),
-            green_field: value & 0x10 != 0x0,
-            short_gi_20mhz: value & 0x20 != 0x0,
-            short_gi_40mhz: value & 0x40 != 0x0,
-            tx_stbc: value & 0x80 != 0x0,
-            rx_stbc: (((value & 0x300) >> 8) as u8).into(),
-            delayed_block_ack: value & 0x400 != 0x0,
-            max_a_msdu_length: if value & 0x800 != 0x0 {
+            ldpc_coding_capability: check_bit!(value, FLAG_HT_LDPC_CODING_CAPABILITY),
+            support_channel_width: check_bit!(value, FLAG_SUPPORT_CHANNEL_WIDTH),
+            green_field: check_bit!(value, FLAG_GREEN_FIELD),
+            short_gi_20mhz: check_bit!(value, FLAG_SHORT_GI_20MHZ),
+            short_gi_40mhz: check_bit!(value, FLAG_SHORT_GI_40MHZ),
+            tx_stbc: check_bit!(value, FLAG_TX_STBC),
+            delayed_block_ack: check_bit!(value, FLAG_DELAYED_BLOCK_ACK),
+            dsss_40mhz: check_bit!(value, FLAG_DSSS_40MHZ),
+            psmp: check_bit!(value, FLAG_PSMP),
+            forty_mhz_intolerant: check_bit!(value, FLAG_40MHZ_INTOLERANT),
+            txop_protection_support: check_bit!(value, FLAG_TXOP_PROTECTION_SUPPORT),
+            max_a_msdu_length: if check_bit!(value, FLAG_MAX_A_MSDU_LENGTH) {
                 MAXAmsduLength::Large
             } else {
                 MAXAmsduLength::Small
             },
-            dsss_40mhz: value & 0x1000 != 0x0,
-            psmp: value & 0x2000 != 0x0,
-            forty_mhz_intolerant: value & 0x4000 != 0x0,
-            txop_protection_support: value & 0x8000 != 0x0,
+            rx_stbc: (((value & FLAG_RX_STBC) >> 8) as u8).into(),
+            sm_power_save: (((value & FLAG_SM_POWER_SAVE) >> 2) as u8).into(),
         }
     }
 }
@@ -100,49 +117,45 @@ impl From<u16> for HTCapabilitiesInfo {
 impl From<HTCapabilitiesInfo> for u16 {
     fn from(value: HTCapabilitiesInfo) -> u16 {
         let mut flags = 0u16;
-        if value.ldpc_coding_capability {
-            flags |= 0x1;
-        }
-        if value.support_channel_width {
-            flags |= 0x2;
-        }
-        if value.sm_power_save != SmPwSave::Static {
-            flags |= (<SmPwSave as Into<u8>>::into(value.sm_power_save) << 2) as u16;
-        }
-        if value.green_field {
-            flags |= 0x10;
-        }
-        if value.short_gi_20mhz {
-            flags |= 0x20;
-        }
-        if value.short_gi_40mhz {
-            flags |= 0x40;
-        }
-        if value.tx_stbc {
-            flags |= 0x80;
-        }
-        if value.rx_stbc != RxSpatialStreams::Zero {
-            flags |= (<RxSpatialStreams as Into<u8>>::into(value.rx_stbc) as u16) << 8;
-        }
-        if value.delayed_block_ack {
-            flags |= 0x400;
-        }
-        if value.max_a_msdu_length == MAXAmsduLength::Large {
-            flags |= 0x800;
-        }
-        if value.dsss_40mhz {
-            flags |= 0x1000;
-        }
-        if value.psmp {
-            flags |= 0x2000;
-        }
-        if value.forty_mhz_intolerant {
-            flags |= 0x4000;
-        }
-        if value.txop_protection_support {
-            flags |= 0x8000;
-        }
 
+        set_bit!(
+            flags,
+            FLAG_HT_LDPC_CODING_CAPABILITY,
+            value.ldpc_coding_capability
+        );
+        set_bit!(
+            flags,
+            FLAG_SUPPORT_CHANNEL_WIDTH,
+            value.support_channel_width
+        );
+        set_bit!(
+            flags,
+            (<SmPwSave as Into<u8>>::into(value.sm_power_save) << 2) as u16,
+            value.sm_power_save != SmPwSave::Static
+        );
+        set_bit!(flags, FLAG_GREEN_FIELD, value.green_field);
+        set_bit!(flags, FLAG_SHORT_GI_20MHZ, value.short_gi_20mhz);
+        set_bit!(flags, FLAG_SHORT_GI_40MHZ, value.short_gi_40mhz);
+        set_bit!(flags, FLAG_TX_STBC, value.tx_stbc);
+        set_bit!(
+            flags,
+            (<RxSpatialStreams as Into<u8>>::into(value.rx_stbc) as u16) << 8,
+            value.rx_stbc != RxSpatialStreams::Zero
+        );
+        set_bit!(flags, FLAG_DELAYED_BLOCK_ACK, value.delayed_block_ack);
+        set_bit!(
+            flags,
+            FLAG_MAX_A_MSDU_LENGTH,
+            value.max_a_msdu_length == MAXAmsduLength::Large
+        );
+        set_bit!(flags, FLAG_DSSS_40MHZ, value.dsss_40mhz);
+        set_bit!(flags, FLAG_PSMP, value.psmp);
+        set_bit!(flags, FLAG_40MHZ_INTOLERANT, value.forty_mhz_intolerant);
+        set_bit!(
+            flags,
+            FLAG_TXOP_PROTECTION_SUPPORT,
+            value.txop_protection_support
+        );
         flags
     }
 }

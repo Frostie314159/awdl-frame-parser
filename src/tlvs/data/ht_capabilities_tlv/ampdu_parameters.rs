@@ -1,5 +1,7 @@
 use bin_utils::*;
 
+use crate::common::bit;
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum MAXAMpduLength {
@@ -76,19 +78,14 @@ pub struct AMpduParameters {
 impl From<u8> for AMpduParameters {
     fn from(value: u8) -> Self {
         Self {
-            max_a_mpdu_length: (value & 0x3).into(),
-            mpdu_density: ((value & 0x1C) >> 2).into(),
+            max_a_mpdu_length: (value & (bit!(0, 1))).into(),
+            mpdu_density: ((value & bit!(2, 3, 4)) >> 2).into(),
         }
     }
 }
 #[cfg(feature = "write")]
 impl From<AMpduParameters> for u8 {
     fn from(value: AMpduParameters) -> u8 {
-        let mut parameters = 0;
-
-        parameters |= <MAXAMpduLength as Into<u8>>::into(value.max_a_mpdu_length);
-        parameters |= <MpduDensity as Into<u8>>::into(value.mpdu_density) << 2;
-
-        parameters
+        <MAXAMpduLength as Into<u8>>::into(value.max_a_mpdu_length) | <MpduDensity as Into<u8>>::into(value.mpdu_density) << 2
     }
 }

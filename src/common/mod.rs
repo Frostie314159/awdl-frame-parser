@@ -32,6 +32,9 @@ macro_rules! bit {
     ($index:expr) => {
         (1 << $index)
     };
+    ($($index:expr), +) => {
+        $(bit!($index) | )+ 0
+    };
 }
 macro_rules! check_bit {
     ($flags:expr, $mask:expr) => {
