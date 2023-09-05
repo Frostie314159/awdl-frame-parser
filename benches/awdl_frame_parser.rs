@@ -1,9 +1,9 @@
 use awdl_frame_parser::{
     action_frame::AWDLActionFrame,
     tlvs::{
+        data::DataPathStateTLV,
         dns_sd::{ArpaTLV, ServiceParametersTLV, ServiceResponseTLV},
-        sync_elect::{ChannelSequenceTLV, SyncTreeTLV},
-        TLVType,
+        sync_elect::{ChannelSequenceTLV, SyncTreeTLV}
     },
 };
 use bin_utils::{Read, Write};
@@ -48,10 +48,6 @@ macro_rules! register_bench_fn {
 
 bench_read!(bench_read_af, AWDLActionFrame);
 bench_write!(bench_write_af, AWDLActionFrame);
-fn bench_get_tlvs(af: &AWDLActionFrame) {
-    let _tlvs = af.get_tlvs(TLVType::SynchronizationParameters);
-}
-
 bench_read!(bench_read_service_parmeters_tlv, ServiceParametersTLV);
 bench_write!(bench_write_service_parameters_tlv, ServiceParametersTLV);
 bench_read!(bench_read_arpa_tlv, ArpaTLV);
@@ -62,13 +58,25 @@ bench_read!(bench_read_service_response_tlv, ServiceResponseTLV);
 bench_write!(bench_write_service_response_tlv, ServiceResponseTLV);
 bench_read!(bench_read_sync_tree_tlv, SyncTreeTLV);
 bench_write!(bench_write_sync_tree_tlv, SyncTreeTLV);
+bench_read!(bench_read_data_path_state_tlv, DataPathStateTLV);
+bench_write!(bench_write_data_path_state_tlv, DataPathStateTLV);
 
 fn criterion_benchmark(c: &mut Criterion) {
     let af_bytes = include_bytes!("../test_bins/mif.bin").to_vec();
     let af = AWDLActionFrame::from_bytes(&mut af_bytes.clone().into_iter()).unwrap();
     register_bench_fn!(c, bench_read_af, af_bytes.clone());
     register_bench_fn!(c, bench_write_af, &af);
-    register_bench_fn!(c, bench_get_tlvs, &af);
+
+    let data_path_state_tlv_bytes =
+        include_bytes!("../test_bins/data_path_state_tlv.bin")[3..].to_vec();
+    register_bench_fn!(
+        c,
+        bench_read_data_path_state_tlv,
+        data_path_state_tlv_bytes.clone()
+    );
+    let data_path_state =
+        DataPathStateTLV::from_bytes(&mut data_path_state_tlv_bytes.into_iter()).unwrap();
+    register_bench_fn!(c, bench_write_data_path_state_tlv, &data_path_state);
 
     let service_parameters_tlv_bytes =
         include_bytes!("../test_bins/service_parameters_tlv.bin")[3..].to_vec();

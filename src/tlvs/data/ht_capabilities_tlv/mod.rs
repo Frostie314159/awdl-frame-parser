@@ -7,9 +7,6 @@ use ht_capabilities_info::*;
 #[cfg(feature = "read")]
 use try_take::try_take;
 
-#[cfg(feature = "write")]
-use alloc::borrow::Cow;
-
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct HTCapabilitiesTLV {
@@ -38,8 +35,8 @@ impl Read for HTCapabilitiesTLV {
     }
 }
 #[cfg(feature = "write")]
-impl<'a> Write<'a> for HTCapabilitiesTLV {
-    fn to_bytes(&self) -> Cow<'a, [u8]> {
+impl Write for HTCapabilitiesTLV {
+    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let mut header = [0x00; 5];
         header[2..4].copy_from_slice(
             <HTCapabilitiesInfo as Into<u16>>::into(self.ht_capabilities_info)
@@ -50,7 +47,7 @@ impl<'a> Write<'a> for HTCapabilitiesTLV {
         header
             .into_iter()
             .chain((0..self.rx_spatial_stream_count).map(|_| 0xff))
-            .chain([0x00; 2].into_iter())
+            .chain([0x00; 2])
             .collect()
     }
 }
