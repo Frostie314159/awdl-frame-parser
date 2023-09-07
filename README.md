@@ -16,9 +16,9 @@ For further information see this [stackoverflow post](https://stackoverflow.com/
 * [x] Election parameters
 * [x] Election parameters v2
 * [x] Synchronization tree
-* [ ] Data path state
+* [x] Data path state
 * [x] HT capabilities
-* [ ] IEEE 802.11 Container
+* [x] IEEE 802.11 Container
 * [x] Service parameters
 * [x] Service response
 ## Features
