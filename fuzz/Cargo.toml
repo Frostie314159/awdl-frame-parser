@@ -8,7 +8,7 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-bin-utils = "0.1.4"
+bin-utils = "0.2.1"
 libfuzzer-sys = "0.4"
 
 [dependencies.awdl-frame-parser]
@@ -77,5 +77,10 @@ doc = false
 [[bin]]
 name = "sync_params_tlv"
 path = "fuzz_targets/tlvs/sync_params.rs"
+test = false
+doc = false
+[[bin]]
+name = "data_path_state"
+path = "fuzz_targets/tlvs/data_path_state.rs"
 test = false
 doc = false
