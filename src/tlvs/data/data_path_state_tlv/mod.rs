@@ -9,7 +9,10 @@ use mac_parser::MACAddress;
 #[cfg(feature = "write")]
 use {crate::common::set_bit, alloc::vec};
 
-use crate::{common::bit, tlvs::{impl_tlv_conversion, TLVType}};
+use crate::{
+    common::bit,
+    tlvs::{impl_tlv_conversion, TLVType},
+};
 
 use self::misc::DataPathChannel;
 pub use self::misc::DataPathMisc;

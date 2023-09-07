@@ -9,7 +9,10 @@ pub use awdl_str::AWDLStr;
 pub use awdl_version::AWDLVersion;
 
 #[cfg(feature = "read")]
-use {core::ops::{BitAnd, Shl}, num_integer::Integer};
+use {
+    core::ops::{BitAnd, Shl},
+    num_integer::Integer,
+};
 
 #[cfg(feature = "read")]
 #[inline]
