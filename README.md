@@ -39,7 +39,7 @@ IEEE80211 Container | data_tlvs | O(n)
 Data Path State | data_tlvs | O(n)
 Version | version_tlv | O(1)
 
-Do note please, that although the parsers are not yet present, the features are. Also some parsers where bundled into one feature. (For more information on this refer to Milan Stute's [dissertation](https://tuprints.ulb.tu-darmstadt.de/11457/1/dissertation_milan-stute_2020.pdf#table.caption.42).)
+Do note please, that although the parsers are not yet present, the features are. Also some parsers were bundled into one feature. (For more information on this refer to Milan Stute's [dissertation](https://tuprints.ulb.tu-darmstadt.de/11457/1/dissertation_milan-stute_2020.pdf#table.caption.42).)
 ## no_std
 The library is built with the `alloc` crate, which makes using it in a no_std environment with an allocator possible.
 ## Credits
