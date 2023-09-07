@@ -110,7 +110,7 @@ macro_rules! impl_tlv_conversion {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes().to_vec().into(),
+                    tlv_data: value.to_bytes().to_vec(),
                     ..core::default::Default::default()
                 }
             }
@@ -136,7 +136,7 @@ macro_rules! impl_tlv_conversion {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes().to_vec().into(),
+                    tlv_data: value.to_bytes(),
                     ..core::default::Default::default()
                 }
             }
@@ -151,7 +151,7 @@ macro_rules! impl_tlv_conversion {
                 if value.tlv_type != $tlv_type {
                     return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
                 }
-                Self::from_bytes(&mut value.tlv_data.into_iter().copied())
+                Self::from_bytes(&mut value.tlv_data.into_iter())
                     .map_err($crate::tlvs::FromTLVError::ParserError)
             }
         }
@@ -162,7 +162,7 @@ macro_rules! impl_tlv_conversion {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes().to_vec().into(),
+                    tlv_data: value.to_bytes().to_vec(),
                     ..core::default::Default::default()
                 }
             }
@@ -185,7 +185,7 @@ macro_rules! impl_tlv_conversion {
             fn from(value: $ntype) -> Self {
                 Self {
                     tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes().to_vec().into(),
+                    tlv_data: value.to_bytes(),
                     ..core::default::Default::default()
                 }
             }

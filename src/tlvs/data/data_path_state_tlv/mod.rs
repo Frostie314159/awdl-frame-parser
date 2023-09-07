@@ -9,7 +9,7 @@ use mac_parser::MACAddress;
 #[cfg(feature = "write")]
 use {crate::common::set_bit, alloc::vec};
 
-use crate::common::bit;
+use crate::{common::bit, tlvs::{impl_tlv_conversion, TLVType}};
 
 use self::misc::DataPathChannel;
 pub use self::misc::DataPathMisc;
@@ -258,6 +258,7 @@ impl Write for DataPathStateTLV {
             .collect()
     }
 }
+impl_tlv_conversion!(false, DataPathStateTLV, TLVType::DataPathState, 2);
 #[test]
 fn test_data_path_state_tlv() {
     let bytes = include_bytes!("../../../../test_bins/data_path_state_tlv.bin")[3..].to_vec();

@@ -7,6 +7,8 @@ use ht_capabilities_info::*;
 #[cfg(feature = "read")]
 use try_take::try_take;
 
+use crate::tlvs::{impl_tlv_conversion, TLVType};
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct HTCapabilitiesTLV {
@@ -15,10 +17,11 @@ pub struct HTCapabilitiesTLV {
     pub rx_spatial_stream_count: u8,
 }
 #[cfg(feature = "read")]
-impl Read for HTCapabilitiesTLV {
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
+impl ReadFixed<8> for HTCapabilitiesTLV {
+    fn from_bytes(data: &[u8; 8]) -> Result<Self, ParserError> {
+        let mut data = data.into_iter().copied();
         let _ = data.next_chunk::<2>();
-        let mut fixed_data = try_take(data, 3).map_err(ParserError::TooLittleData)?;
+        let mut fixed_data = try_take(&mut data, 3).map_err(ParserError::TooLittleData)?;
         let ht_capabilities_info =
             HTCapabilitiesInfo::from(u16::from_le_bytes(fixed_data.next_chunk().unwrap()));
         let a_mpdu_parameters = AMpduParameters::from(fixed_data.next().unwrap());
@@ -51,13 +54,14 @@ impl Write for HTCapabilitiesTLV {
             .collect()
     }
 }
+impl_tlv_conversion!(true, HTCapabilitiesTLV, TLVType::HTCapabilities, 8);
 
 #[cfg(test)]
 #[test]
 fn test_ht_capabilities() {
     use alloc::borrow::ToOwned;
 
-    let bytes = include_bytes!("../../../../test_bins/ht_capabilities_tlv.bin")[3..].to_vec();
+    let bytes = include_bytes!("../../../../test_bins/ht_capabilities_tlv.bin");
     assert_eq!(
         HTCapabilitiesInfo::from(0x1u16 | 0xCu16),
         HTCapabilitiesInfo {
@@ -66,7 +70,7 @@ fn test_ht_capabilities() {
             ..Default::default()
         }
     );
-    let ht_capabilities_tlv = HTCapabilitiesTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let ht_capabilities_tlv = HTCapabilitiesTLV::from_bytes(&bytes[3..].try_into().unwrap()).unwrap();
     assert_eq!(
         ht_capabilities_tlv,
         HTCapabilitiesTLV {
