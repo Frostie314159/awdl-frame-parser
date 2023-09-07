@@ -1,5 +1,6 @@
 use bin_utils::*;
 
+#[cfg(feature = "read")]
 use crate::common::bit;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -86,6 +87,7 @@ impl From<u8> for AMpduParameters {
 #[cfg(feature = "write")]
 impl From<AMpduParameters> for u8 {
     fn from(value: AMpduParameters) -> u8 {
-        <MAXAMpduLength as Into<u8>>::into(value.max_a_mpdu_length) | <MpduDensity as Into<u8>>::into(value.mpdu_density) << 2
+        <MAXAMpduLength as Into<u8>>::into(value.max_a_mpdu_length)
+            | <MpduDensity as Into<u8>>::into(value.mpdu_density) << 2
     }
 }

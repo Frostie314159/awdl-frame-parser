@@ -1,21 +1,26 @@
 use bin_utils::*;
 
-use crate::common::{bit, check_bit, set_bit};
+#[cfg(feature = "read")]
+use crate::common::check_bit;
+#[cfg(feature = "write")]
+use crate::common::set_bit;
 
-const FLAG_HT_LDPC_CODING_CAPABILITY: u16 = bit!(0);
-const FLAG_SUPPORT_CHANNEL_WIDTH: u16 = bit!(1);
-const FLAG_SM_POWER_SAVE: u16 = bit!(2, 3);
-const FLAG_GREEN_FIELD: u16 = bit!(4);
-const FLAG_SHORT_GI_20MHZ: u16 = bit!(5);
-const FLAG_SHORT_GI_40MHZ: u16 = bit!(6);
-const FLAG_TX_STBC: u16 = bit!(7);
-const FLAG_RX_STBC: u16 = bit!(8, 9);
-const FLAG_DELAYED_BLOCK_ACK: u16 = bit!(10);
-const FLAG_MAX_A_MSDU_LENGTH: u16 = bit!(11);
-const FLAG_DSSS_40MHZ: u16 = bit!(12);
-const FLAG_PSMP: u16 = bit!(13);
-const FLAG_40MHZ_INTOLERANT: u16 = bit!(14);
-const FLAG_TXOP_PROTECTION_SUPPORT: u16 = bit!(15);
+use crate::common::bit;
+
+pub const FLAG_HT_LDPC_CODING_CAPABILITY: u16 = bit!(0);
+pub const FLAG_SUPPORT_CHANNEL_WIDTH: u16 = bit!(1);
+pub const FLAG_SM_POWER_SAVE: u16 = bit!(2, 3);
+pub const FLAG_GREEN_FIELD: u16 = bit!(4);
+pub const FLAG_SHORT_GI_20MHZ: u16 = bit!(5);
+pub const FLAG_SHORT_GI_40MHZ: u16 = bit!(6);
+pub const FLAG_TX_STBC: u16 = bit!(7);
+pub const FLAG_RX_STBC: u16 = bit!(8, 9);
+pub const FLAG_DELAYED_BLOCK_ACK: u16 = bit!(10);
+pub const FLAG_MAX_A_MSDU_LENGTH: u16 = bit!(11);
+pub const FLAG_DSSS_40MHZ: u16 = bit!(12);
+pub const FLAG_PSMP: u16 = bit!(13);
+pub const FLAG_40MHZ_INTOLERANT: u16 = bit!(14);
+pub const FLAG_TXOP_PROTECTION_SUPPORT: u16 = bit!(15);
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq, Eq, Default)]

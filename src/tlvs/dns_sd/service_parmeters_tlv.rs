@@ -1,10 +1,10 @@
 use alloc::vec::Vec;
 use bin_utils::*;
 
-use crate::{
-    common::process_bitmask,
-    tlvs::{impl_tlv_conversion, TLVType},
-};
+#[cfg(feature = "read")]
+use crate::common::process_bitmask;
+
+use crate::tlvs::{impl_tlv_conversion, TLVType};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
