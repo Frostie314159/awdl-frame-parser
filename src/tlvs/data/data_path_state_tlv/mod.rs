@@ -27,7 +27,9 @@ bitfield! {
         pub airplay_sink: bool => bit!(6),
         pub country_code: bool => bit!(8),
         pub channel_map: bool => bit!(9),
+        pub airplay_solo_mode: bool => bit!(10),
         pub unicast_options: bool => bit!(12),
+        pub is_realtime: bool => bit!(13),
         pub rangeable: bool => bit!(14),
         pub extension_flags: bool => bit!(15)
     }
@@ -39,8 +41,8 @@ bitfield! {
         pub log_trigger_id: bool => bit!(0),
         pub ranging_discovery: bool => bit!(1),
         pub rlfc: bool => bit!(2),
-        pub is_channel_map: bool => bit!(3),
-        pub sdb: bool => bit!(4),
+        pub channel_map_changed: bool => bit!(3),
+        pub sdb_active: bool => bit!(4),
         pub dfs_proxy_support: bool => bit!(5),
         pub misc: bool => bit!(6)
     }
@@ -59,11 +61,13 @@ pub struct DataPathStateTLV {
     pub umi: Option<u16>,
 
     pub airplay_sink: bool,
+    pub airplay_solo_mode: bool,
     pub rangeable: bool,
     pub dualband_support: bool,
+    pub is_realtime: bool,
 
-    pub log_trigger_id: Option<u16>,
-    pub rlfc: Option<u32>,
+    pub rlfc: Option<u16>,
+    pub log_trigger_id: Option<u32>,
     pub misc: Option<DataPathMisc>,
 
     pub ranging_discovery: bool,
@@ -129,8 +133,10 @@ impl Read for DataPathStateTLV {
             )?);
         }
         data_path_state_tlv.airplay_sink = flags.airplay_sink;
+        data_path_state_tlv.airplay_solo_mode = flags.airplay_solo_mode;
         data_path_state_tlv.rangeable = flags.rangeable;
         data_path_state_tlv.dualband_support = flags.dualband_support;
+        data_path_state_tlv.is_realtime = flags.is_realtime;
         if flags.extension_flags {
             let extended_flags =
                 DataPathExtendedFlags::from_representation(<u16 as ReadCtx<&Endian>>::from_bytes(
@@ -141,23 +147,23 @@ impl Read for DataPathStateTLV {
             if let Some(channel) = channel {
                 data_path_state_tlv.channel = Some(DataPathChannel::from_u16(
                     channel,
-                    !extended_flags.is_channel_map,
+                    !extended_flags.channel_map_changed,
                 ));
             }
             data_path_state_tlv.ranging_discovery = extended_flags.ranging_discovery;
-            data_path_state_tlv.sdb = extended_flags.sdb;
+            data_path_state_tlv.sdb = extended_flags.sdb_active;
             data_path_state_tlv.dfs_proxy_support = extended_flags.dfs_proxy_support;
-            if extended_flags.log_trigger_id {
-                data_path_state_tlv.log_trigger_id = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
-                    data,
-                    &Endian::Little,
-                )?)
-            }
             if extended_flags.rlfc {
-                data_path_state_tlv.rlfc = Some(<u32 as ReadCtx<&Endian>>::from_bytes(
+                data_path_state_tlv.rlfc = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?);
+            }
+            if extended_flags.log_trigger_id {
+                data_path_state_tlv.log_trigger_id = Some(<u32 as ReadCtx<&Endian>>::from_bytes(
+                    data,
+                    &Endian::Little,
+                )?)
             }
             if extended_flags.misc {
                 data_path_state_tlv.misc = DataPathMisc::from_bytes(
@@ -229,23 +235,23 @@ impl Write for DataPathStateTLV {
         let mut extended_flags = DataPathExtendedFlags::default();
         let mut extended_bytes = vec![];
 
-        if let Some(log_trigger_id) = self.log_trigger_id {
-            extended_flags.log_trigger_id = true;
-            extended_bytes.extend(log_trigger_id.to_le_bytes());
-        }
         if let Some(rlfc) = self.rlfc {
             extended_flags.rlfc = true;
             extended_bytes.extend(rlfc.to_le_bytes());
+        }   
+        if let Some(log_trigger_id) = self.log_trigger_id {
+            extended_flags.log_trigger_id = true;
+            extended_bytes.extend(log_trigger_id.to_le_bytes());
         }
         if let Some(misc) = &self.misc {
             extended_flags.misc = true;
             extended_bytes.extend(misc.to_bytes());
         }
         extended_flags.ranging_discovery = self.ranging_discovery;
-        extended_flags.is_channel_map = self
+        extended_flags.channel_map_changed = self
             .channel
             .is_some_and(|x| matches!(x, DataPathChannel::SingleChannel { .. }));
-        extended_flags.sdb = self.sdb;
+        extended_flags.sdb_active = self.sdb;
         extended_flags.dfs_proxy_support = self.dfs_proxy_support;
         flags
             .to_representation()
