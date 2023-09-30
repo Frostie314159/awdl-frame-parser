@@ -1,18 +1,18 @@
-use bin_utils::*;
+use macro_bits::{serializable_enum, bitfield, bit};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// This enum contains the three different types of channel encodings.
-pub enum ChannelEncoding {
-    /// Simple channel encoding.
-    Simple,
+serializable_enum! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    /// This enum contains the three different types of channel encodings.
+    pub enum ChannelEncoding : u8 {
+        /// Simple channel encoding.
+        Simple => 0x00,
 
-    /// Legacy channel encoding.
-    Legacy,
+        /// Legacy channel encoding.
+        Legacy => 0x01,
 
-    /// Operating class channel encoding.
-    OpClass,
-
-    Unknown(u8),
+        /// Operating class channel encoding.
+        OpClass => 0x03
+    }
 }
 impl ChannelEncoding {
     #[inline]
@@ -24,105 +24,49 @@ impl ChannelEncoding {
         }
     }
 }
-enum_to_int! {
-    u8,
-    ChannelEncoding,
 
-    0x00,
-    ChannelEncoding::Simple,
-    0x01,
-    ChannelEncoding::Legacy,
-    0x03,
-    ChannelEncoding::OpClass
-}
+serializable_enum! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub enum SupportChannel : u8 {
+        Lower => 0x01,
 
-pub type ChannelSequenceInternal<T> = [T; 16];
+        Upper => 0x02,
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum SupportChannel {
-    Lower,
-
-    Upper,
-
-    #[default]
-    Primary,
-
-    Unknown(u8),
-}
-enum_to_int! {
-    u8,
-    SupportChannel,
-
-    0x01,
-    SupportChannel::Lower,
-    0x02,
-    SupportChannel::Upper,
-    0x03,
-    SupportChannel::Primary
-}
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-/// These are the channel bandwiths supported by AWDL.
-pub enum ChannelBandwidth {
-    #[default]
-    /// 20MHz
-    TwentyMHz,
-
-    /// 40MHz
-    FourtyMHz,
-
-    Unknown(u8),
-}
-enum_to_int! {
-    u8,
-    ChannelBandwidth,
-
-    0x01,
-    ChannelBandwidth::TwentyMHz,
-    0x03,
-    ChannelBandwidth::FourtyMHz
-}
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-/// This is the band on which the channel lies.
-/// This could potentially be expanded to the 6GHz spectrum as well.
-pub enum Band {
-    #[default]
-    /// 2.4GHz
-    TwoPointFourGHz,
-    /// 5GHz
-    FiveGHz,
-
-    Unknown(u8),
-}
-enum_to_int! {
-    u8,
-    Band,
-
-    0x01,
-    Band::FiveGHz,
-    0x02,
-    Band::TwoPointFourGHz
-}
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-/// The Flags for the legacy channel encoding.
-pub struct LegacyFlags {
-    pub support_channel: SupportChannel,
-    pub channel_bandwidth: ChannelBandwidth,
-    pub band: Band,
-}
-impl From<u8> for LegacyFlags {
-    fn from(value: u8) -> Self {
-        Self {
-            support_channel: (value & 3).into(),
-            channel_bandwidth: ((value & 12) >> 2).into(),
-            band: ((value & 48) >> 4).into(),
-        }
+        #[default]
+        Primary => 0x03
     }
 }
-impl From<LegacyFlags> for u8 {
-    fn from(value: LegacyFlags) -> Self {
-        <SupportChannel as Into<u8>>::into(value.support_channel)
-            | (<ChannelBandwidth as Into<u8>>::into(value.channel_bandwidth) << 2)
-            | (<Band as Into<u8>>::into(value.band) << 4)
+serializable_enum! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    /// These are the channel bandwiths supported by AWDL.
+    pub enum ChannelBandwidth : u8{
+        #[default]
+        /// 20MHz
+        TwentyMHz => 0x01,
+
+        /// 40MHz
+        FourtyMHz => 0x03
+    }
+}
+serializable_enum! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    /// This is the band on which the channel lies.
+    /// This could potentially be expanded to the 6GHz spectrum as well.
+    pub enum Band : u8 {
+        #[default]
+        /// 2.4GHz
+        TwoPointFourGHz => 0x02,
+        /// 5GHz
+        FiveGHz => 0x01
+    }
+}
+bitfield! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    /// The Flags for the legacy channel encoding.
+    pub struct LegacyFlags : u8 {
+        pub support_channel: SupportChannel => bit!(0, 1),
+        pub channel_bandwidth: ChannelBandwidth => bit!(2, 3),
+        pub band: Band => bit!(4, 5)
     }
 }
 

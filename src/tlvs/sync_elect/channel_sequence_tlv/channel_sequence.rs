@@ -1,19 +1,20 @@
 use bin_utils::*;
+use heapless::Vec;
 #[cfg(feature = "read")]
 use try_take::try_take;
 
 use super::channel::*;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 /// The different types of channel sequences.
 pub enum ChannelSequence {
     /// This encodes just the channel.
-    Simple(ChannelSequenceInternal<u8>),
+    Simple(Vec<u8, 16>),
     /// This encodes channel flags and the channel it self.
-    Legacy(ChannelSequenceInternal<(LegacyFlags, u8)>),
+    Legacy(Vec<(LegacyFlags, u8), 16>),
     /// This encodes first the channel and then the channels opclass.
-    OpClass(ChannelSequenceInternal<(u8, u8)>),
+    OpClass(Vec<(u8, u8), 16>),
 }
 impl ChannelSequence {
     #[inline]
@@ -27,12 +28,16 @@ impl ChannelSequence {
     }
     #[inline]
     /// Generates a repeating channel sequence with the argument.
-    pub const fn fixed_channel_sequence(channel: Channel) -> Self {
+    pub fn fixed_channel_sequence(channel: Channel) -> Self {
         match channel {
-            Channel::Simple { channel } => ChannelSequence::Simple([channel; 16]),
-            Channel::Legacy { flags, channel } => ChannelSequence::Legacy([(flags, channel); 16]),
+            Channel::Simple { channel } => {
+                ChannelSequence::Simple(Vec::from_iter([channel; 16].into_iter()))
+            }
+            Channel::Legacy { flags, channel } => {
+                ChannelSequence::Legacy(Vec::from_iter([(flags, channel); 16].into_iter()))
+            }
             Channel::OpClass { channel, opclass } => {
-                ChannelSequence::OpClass([(channel, opclass); 16])
+                ChannelSequence::OpClass(Vec::from_iter([(channel, opclass); 16].into_iter()))
             }
         }
     }
@@ -44,22 +49,16 @@ impl ReadCtx<&ChannelEncoding> for ChannelSequence {
         ctx: &ChannelEncoding,
     ) -> Result<Self, ParserError> {
         let channel_sequence_bytes_length = 16 * ctx.size() as usize;
-        let mut data =
+        let data =
             try_take(data, channel_sequence_bytes_length).map_err(ParserError::TooLittleData)?;
         Ok(match ctx {
-            ChannelEncoding::Simple => Self::Simple(data.next_chunk().unwrap()),
-            ChannelEncoding::Legacy => Self::Legacy(
-                data.array_chunks::<2>()
-                    .map(|x| (x[0].into(), x[1]))
-                    .next_chunk()
-                    .unwrap(),
-            ),
-            ChannelEncoding::OpClass => Self::OpClass(
-                data.array_chunks::<2>()
-                    .map(|x| (x[0], x[1]))
-                    .next_chunk()
-                    .unwrap(),
-            ),
+            ChannelEncoding::Simple => Self::Simple(Vec::from_iter(data)),
+            ChannelEncoding::Legacy => Self::Legacy(Vec::from_iter(
+                data.array_chunks::<2>().map(|x| (x[0].into(), x[1])),
+            )),
+            ChannelEncoding::OpClass => Self::OpClass(Vec::from_iter(
+                data.array_chunks::<2>().map(|x| (x[0], x[1])),
+            )),
             ChannelEncoding::Unknown(_) => return Err(ParserError::ValueNotUnderstood),
         })
     }

@@ -1,13 +1,8 @@
 use bin_utils::*;
-
-use crate::common::{bit, check_bit, set_bit};
-
-pub const CHANNEL_6: u16 = bit!(0);
-pub const CHANNEL_44: u16 = bit!(1);
-pub const CHANNEL_149: u16 = bit!(2);
+use macro_bits::{bit, bitfield};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default, Clone)]
+#[derive(Clone, Default, PartialEq)]
 pub struct DataPathMisc {
     pub msec_since_activation: u32,
     pub aw_seq_counter: u32,
@@ -36,17 +31,20 @@ impl WriteFixed<12> for DataPathMisc {
             .unwrap()
     }
 }
+bitfield! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, Copy, Default, Eq, PartialEq)]
+    pub struct ChannelMap: u16 {
+        pub channel_6: bool => bit!(0),
+        pub channel_44: bool => bit!(1),
+        pub channel_149: bool => bit!(2)
+    }
+}
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
 pub enum DataPathChannel {
-    SingleChannel {
-        channel: u8,
-    },
-    ChannelMap {
-        channel_6: bool,
-        channel_44: bool,
-        channel_149: bool,
-    },
+    SingleChannel { channel: u8 },
+    ChannelMap(ChannelMap),
 }
 impl DataPathChannel {
     pub fn from_u16(value: u16, single_channel: bool) -> Self {
@@ -55,27 +53,13 @@ impl DataPathChannel {
                 channel: value as u8,
             }
         } else {
-            Self::ChannelMap {
-                channel_6: check_bit!(value, CHANNEL_6),
-                channel_44: check_bit!(value, CHANNEL_44),
-                channel_149: check_bit!(value, CHANNEL_149),
-            }
+            Self::ChannelMap(ChannelMap::from_representation(value))
         }
     }
     pub fn as_u16(&self) -> u16 {
         match *self {
             DataPathChannel::SingleChannel { channel } => channel as u16,
-            DataPathChannel::ChannelMap {
-                channel_6,
-                channel_44,
-                channel_149,
-            } => {
-                let mut channel_map = 0;
-                set_bit!(channel_map, CHANNEL_6, channel_6);
-                set_bit!(channel_map, CHANNEL_44, channel_44);
-                set_bit!(channel_map, CHANNEL_149, channel_149);
-                channel_map
-            }
+            DataPathChannel::ChannelMap(channel_map) => channel_map.to_representation(),
         }
     }
 }

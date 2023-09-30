@@ -78,7 +78,7 @@ fn test_ht_capabilities() {
                 sm_power_save: SmPwSave::Disabled,
                 short_gi_20mhz: true,
                 short_gi_40mhz: true,
-                rx_stbc: RxSpatialStreams::One,
+                rx_stbc: 1,
                 ..Default::default()
             },
             a_mpdu_parameters: AMpduParameters {

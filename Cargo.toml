@@ -32,7 +32,9 @@ harness = false
 
 [dependencies]
 bin-utils = "0.2.1"
+heapless = "0.7.16"
 mac-parser = { version = "0.1.2", default-features = false }
+macro-bits = "0.1.1"
 num-integer = { version = "0.1.45", default-features = false }
 tlv-rs = { version = "0.2.1", default-features = false }
 try_take = "0.1.0"

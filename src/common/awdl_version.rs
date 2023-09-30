@@ -1,14 +1,18 @@
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-/// A version in AWDL format.
-pub struct AWDLVersion {
-    /// The major version.
-    pub major: u8,
+use macro_bits::bitfield;
 
-    /// The minor version.
-    pub minor: u8,
+bitfield! {
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    /// A version in AWDL format.
+    pub struct AWDLVersion: u8 {
+        /// The major version.
+        pub major: u8 => 0xf0,
+
+        /// The minor version.
+        pub minor: u8 => 0x0f
+    }
 }
 impl PartialOrd for AWDLVersion {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
@@ -25,22 +29,5 @@ impl PartialOrd for AWDLVersion {
 impl Debug for AWDLVersion {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&alloc::format!("{}.{}", self.major, self.minor))
-    }
-}
-#[cfg(feature = "read")]
-impl From<u8> for AWDLVersion {
-    #[inline]
-    fn from(value: u8) -> Self {
-        Self {
-            major: (value >> 4) & 0xf,
-            minor: value & 0xf,
-        }
-    }
-}
-#[cfg(feature = "write")]
-impl From<AWDLVersion> for u8 {
-    #[inline]
-    fn from(value: AWDLVersion) -> Self {
-        (value.major << 4) | value.minor
     }
 }

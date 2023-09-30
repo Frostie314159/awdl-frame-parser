@@ -29,27 +29,3 @@ where
         })
         .zip(0..)
 }
-macro_rules! bit {
-    ($index:expr) => {
-        (1 << $index)
-    };
-    ($($index:expr), +) => {
-        $(bit!($index) | )+ 0
-    };
-}
-macro_rules! check_bit {
-    ($flags:expr, $mask:expr) => {
-        ($flags & $mask != 0x0)
-    };
-}
-macro_rules! set_bit {
-    ($flags:expr, $mask:expr) => {
-        $flags |= $mask
-    };
-    ($flags:expr, $mask:expr, $value:expr) => {
-        if $value {
-            set_bit!($flags, $mask);
-        }
-    };
-}
-pub(crate) use {bit, check_bit, set_bit};

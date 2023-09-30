@@ -3,34 +3,26 @@ use crate::{
     tlvs::{impl_tlv_conversion, TLVType},
 };
 use bin_utils::*;
+use macro_bits::serializable_enum;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
-/// The device class of the peer.
-pub enum AWDLDeviceClass {
-    /// A macOS X device.
-    #[default]
-    MacOS,
+serializable_enum! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Default, Clone, Copy, PartialEq, Eq)]
+    /// The device class of the peer.
+    pub enum AWDLDeviceClass: u8 {
+        /// A macOS X device.
+        #[default]
+        MacOS => 0x1,
 
-    /// A iOS or watchOS device.
-    IOSWatchOS,
+        /// A iOS device.
+        IOS => 0x2,
 
-    /// A tvOS device.
-    TVOS,
+        /// A watchOS device.
+        WatchOS => 0x4,
 
-    /// A device of unknown type.
-    Unknown(u8),
-}
-enum_to_int! {
-    u8,
-    AWDLDeviceClass,
-
-    0x01,
-    AWDLDeviceClass::MacOS,
-    0x02,
-    AWDLDeviceClass::IOSWatchOS,
-    0x08,
-    AWDLDeviceClass::TVOS
+        /// A tvOS device.
+        TVOS => 0x8
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

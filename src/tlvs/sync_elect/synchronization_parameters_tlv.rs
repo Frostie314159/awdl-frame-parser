@@ -122,6 +122,8 @@ impl From<SynchronizationParametersTLV> for AWDLTLV {
 fn test_sync_parameters_tlv() {
     use core::num::NonZeroU8;
 
+    use heapless::Vec;
+
     use crate::tlvs::sync_elect::{
         channel::{Band, ChannelBandwidth, ChannelEncoding, LegacyFlags, SupportChannel},
         channel_sequence::ChannelSequence,
@@ -155,136 +157,139 @@ fn test_sync_parameters_tlv() {
             channel_sequence: ChannelSequenceTLV {
                 channel_encoding: ChannelEncoding::Legacy,
                 step_count: NonZeroU8::new(4).unwrap(),
-                channel_sequence: ChannelSequence::Legacy([
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
-                            band: Band::TwoPointFourGHz
-                        },
-                        8
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
-                            band: Band::TwoPointFourGHz
-                        },
-                        8
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
-                            band: Band::TwoPointFourGHz
-                        },
-                        8
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
-                            band: Band::TwoPointFourGHz
-                        },
-                        8
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        46
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        38
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        38
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        38
-                    ),
-                    (
-                        LegacyFlags {
-                            support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
-                            band: Band::FiveGHz
-                        },
-                        38
-                    ),
-                ])
+                channel_sequence: ChannelSequence::Legacy(Vec::from_iter(
+                    [
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Primary,
+                                channel_bandwidth: ChannelBandwidth::Unknown(2),
+                                band: Band::TwoPointFourGHz
+                            },
+                            8
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Primary,
+                                channel_bandwidth: ChannelBandwidth::Unknown(2),
+                                band: Band::TwoPointFourGHz
+                            },
+                            8
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Primary,
+                                channel_bandwidth: ChannelBandwidth::Unknown(2),
+                                band: Band::TwoPointFourGHz
+                            },
+                            8
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Primary,
+                                channel_bandwidth: ChannelBandwidth::Unknown(2),
+                                band: Band::TwoPointFourGHz
+                            },
+                            8
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            46
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            38
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            38
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            38
+                        ),
+                        (
+                            LegacyFlags {
+                                support_channel: SupportChannel::Lower,
+                                channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                                band: Band::FiveGHz
+                            },
+                            38
+                        ),
+                    ]
+                    .into_iter()
+                ))
             }
         }
     );

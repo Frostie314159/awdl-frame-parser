@@ -1,77 +1,41 @@
-use bin_utils::*;
+use macro_bits::serializable_enum;
 
-#[non_exhaustive]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-/// Compressed dns-sd domains/services. Compression might be the wrong word though.
-pub enum AWDLDnsCompression {
-    Null,
+serializable_enum! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, Copy, Default, PartialEq, Eq)]
+    /// Compressed dns-sd domains/services. Compression might be the wrong word though.
+    pub enum AWDLDnsCompression: u16 {
+        Null => 0xC000,
 
-    AirPlayTcpLocal,
+        AirPlayTcpLocal => 0xC001,
 
-    AirPlayUdpLocal,
+        AirPlayUdpLocal => 0xC002,
 
-    AirPlay,
+        AirPlay => 0xC003,
 
-    RaopTcpLocal,
+        RaopTcpLocal => 0xC004,
 
-    RaopUdpLocal,
+        RaopUdpLocal => 0xC005,
 
-    Raop,
+        Raop => 0xC006,
 
-    AirDropTcpLocal,
+        AirDropTcpLocal => 0xC007,
 
-    AirDropUdpLocal,
+        AirDropUdpLocal => 0xC008,
 
-    AirDrop,
+        AirDrop => 0xC009,
 
-    TcpLocal,
+        TcpLocal => 0xC00A,
 
-    UdpLocal,
+        UdpLocal => 0xC00B,
 
-    #[default]
-    Local,
+        #[default]
+        Local => 0xC00C,
 
-    Ip6Arpa,
+        Ip6Arpa => 0xC00D,
 
-    Ip4Arpa,
-
-    Unknown(u16),
-}
-enum_to_int! {
-    u16,
-    AWDLDnsCompression,
-
-    0xC000,
-    AWDLDnsCompression::Null,
-    0xC001,
-    AWDLDnsCompression::AirPlayTcpLocal,
-    0xC002,
-    AWDLDnsCompression::AirPlayUdpLocal,
-    0xC003,
-    AWDLDnsCompression::AirPlay,
-    0xC004,
-    AWDLDnsCompression::RaopTcpLocal,
-    0xC005,
-    AWDLDnsCompression::RaopUdpLocal,
-    0xC006,
-    AWDLDnsCompression::Raop,
-    0xC007,
-    AWDLDnsCompression::AirDropTcpLocal,
-    0xC008,
-    AWDLDnsCompression::AirDropUdpLocal,
-    0xC009,
-    AWDLDnsCompression::AirDrop,
-    0xC00A,
-    AWDLDnsCompression::TcpLocal,
-    0xC00B,
-    AWDLDnsCompression::UdpLocal,
-    0xC00C,
-    AWDLDnsCompression::Local,
-    0xC00D,
-    AWDLDnsCompression::Ip6Arpa,
-    0xC00E,
-    AWDLDnsCompression::Ip4Arpa
+        Ip4Arpa => 0xC00E
+    }
 }
 impl AWDLDnsCompression {
     pub fn to_string(&self) -> &'static str {

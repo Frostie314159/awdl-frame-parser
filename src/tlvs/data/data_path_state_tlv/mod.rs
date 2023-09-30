@@ -1,44 +1,53 @@
 mod misc;
 
 #[cfg(feature = "read")]
-use {crate::common::check_bit, try_take::try_take};
+use try_take::try_take;
 
+#[cfg(feature = "write")]
+use alloc::vec;
 use alloc::vec::Vec;
 use bin_utils::*;
 use mac_parser::MACAddress;
-#[cfg(feature = "write")]
-use {crate::common::set_bit, alloc::vec};
+use macro_bits::{bit, bitfield};
 
-use crate::{
-    common::bit,
-    tlvs::{impl_tlv_conversion, TLVType},
-};
+use crate::tlvs::{impl_tlv_conversion, TLVType};
 
 use self::misc::DataPathChannel;
 pub use self::misc::DataPathMisc;
 
-pub const FLAG_INFRA_BSSID_CHANNEL: u16 = bit!(0);
-pub const FLAG_INFRA_ADDRESS: u16 = bit!(1);
-pub const FLAG_AWDL_ADDRESS: u16 = bit!(2);
-pub const FLAG_UMI: u16 = bit!(4);
-pub const FLAG_DUALBAND_SUPPORT: u16 = bit!(5);
-pub const FLAG_IS_AIRPLAY: u16 = bit!(6);
-pub const FLAG_COUNTRY_CODE: u16 = bit!(8);
-pub const FLAG_CHANNEL_MAP: u16 = bit!(9);
-pub const FLAG_UNICAST_OPTIONS: u16 = bit!(12);
-pub const FLAG_IS_RANGEABLE: u16 = bit!(14);
-pub const FLAG_EXTENSION_FLAGS: u16 = bit!(15);
-
-pub const EXTENDED_FLAGS_LOGTRIGGER_ID: u16 = bit!(0);
-pub const EXTENDED_FLAGS_RANGING_DISCOVERY: u16 = bit!(1);
-pub const EXTENDED_FLAGS_RLFC: u16 = bit!(2);
-pub const EXTENDED_FLAGS_IS_CHANNEL_MAP: u16 = bit!(3);
-pub const EXTENDED_FLAGS_SDB: u16 = bit!(4);
-pub const EXTENDED_FLAGS_DFS_PROXY_SUPPORT: u16 = bit!(5);
-pub const EXTENDED_FLAGS_MISC: u16 = bit!(6);
+bitfield! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, Default, PartialEq)]
+    struct DataPathFlags: u16 {
+        pub infra_bssid_channel: bool => bit!(0),
+        pub infra_address: bool => bit!(1),
+        pub awdl_address: bool => bit!(2),
+        pub umi: bool => bit!(4),
+        pub dualband_support: bool => bit!(5),
+        pub airplay_sink: bool => bit!(6),
+        pub country_code: bool => bit!(8),
+        pub channel_map: bool => bit!(9),
+        pub unicast_options: bool => bit!(12),
+        pub rangeable: bool => bit!(14),
+        pub extension_flags: bool => bit!(15)
+    }
+}
+bitfield! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone, Default, PartialEq)]
+    struct DataPathExtendedFlags: u16 {
+        pub log_trigger_id: bool => bit!(0),
+        pub ranging_discovery: bool => bit!(1),
+        pub rlfc: bool => bit!(2),
+        pub is_channel_map: bool => bit!(3),
+        pub sdb: bool => bit!(4),
+        pub dfs_proxy_support: bool => bit!(5),
+        pub misc: bool => bit!(6)
+    }
+}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default, Clone)]
+#[derive(Clone, Default, PartialEq)]
 pub struct DataPathStateTLV {
     // Normal flags
     pub country_code: Option<[char; 2]>,
@@ -49,8 +58,8 @@ pub struct DataPathStateTLV {
     pub unicast_options: Option<Vec<u8>>,
     pub umi: Option<u16>,
 
-    pub is_airplay: bool,
-    pub is_rangeable: bool,
+    pub airplay_sink: bool,
+    pub rangeable: bool,
     pub dualband_support: bool,
 
     pub log_trigger_id: Option<u16>,
@@ -64,11 +73,14 @@ pub struct DataPathStateTLV {
 #[cfg(feature = "read")]
 impl Read for DataPathStateTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let flags = <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?;
+        let flags = DataPathFlags::from_representation(<u16 as ReadCtx<&Endian>>::from_bytes(
+            data,
+            &Endian::Little,
+        )?);
 
         let mut data_path_state_tlv = DataPathStateTLV::default();
 
-        if check_bit!(flags, FLAG_COUNTRY_CODE) {
+        if flags.country_code {
             let mut data = try_take(data, 3)
                 .map_err(ParserError::TooLittleData)?
                 .map(|x| x as char);
@@ -76,17 +88,17 @@ impl Read for DataPathStateTLV {
             let _ = data.next();
         }
         let mut channel = None;
-        if check_bit!(flags, FLAG_CHANNEL_MAP) {
+        if flags.channel_map {
             channel = <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little).ok();
         }
-        if check_bit!(flags, FLAG_INFRA_BSSID_CHANNEL) {
+        if flags.infra_bssid_channel {
             let mut data = try_take(data, 8).map_err(ParserError::TooLittleData)?;
             data_path_state_tlv.infra_bssid_channel = Some((
                 <MACAddress as ReadFixed<6>>::from_bytes(&data.next_chunk().unwrap())?,
                 <u16 as ReadCtx<&Endian>>::from_bytes(&mut data, &Endian::Little)? as u8,
             ));
         }
-        if check_bit!(flags, FLAG_INFRA_ADDRESS) {
+        if flags.infra_address {
             data_path_state_tlv.infra_address = Some(MACAddress::from_bytes(
                 &try_take(data, 6)
                     .map_err(ParserError::TooLittleData)?
@@ -94,7 +106,7 @@ impl Read for DataPathStateTLV {
                     .unwrap(),
             )?);
         }
-        if check_bit!(flags, FLAG_AWDL_ADDRESS) {
+        if flags.awdl_address {
             data_path_state_tlv.awdl_address = Some(MACAddress::from_bytes(
                 &try_take(data, 6)
                     .map_err(ParserError::TooLittleData)?
@@ -102,7 +114,7 @@ impl Read for DataPathStateTLV {
                     .unwrap(),
             )?);
         }
-        if check_bit!(flags, FLAG_UNICAST_OPTIONS) {
+        if flags.unicast_options {
             let umi_options_length = <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?;
             data_path_state_tlv.unicast_options = Some(
                 try_take(data, umi_options_length as usize)
@@ -110,42 +122,44 @@ impl Read for DataPathStateTLV {
                     .collect(),
             );
         }
-        if check_bit!(flags, FLAG_UMI) {
+        if flags.umi {
             data_path_state_tlv.umi = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
                 data,
                 &Endian::Little,
             )?);
         }
-        data_path_state_tlv.is_airplay = check_bit!(flags, FLAG_IS_AIRPLAY);
-        data_path_state_tlv.is_rangeable = check_bit!(flags, FLAG_IS_RANGEABLE);
-        data_path_state_tlv.dualband_support = check_bit!(flags, FLAG_DUALBAND_SUPPORT);
-        if check_bit!(flags, FLAG_EXTENSION_FLAGS) {
-            let extended_flags = <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?;
+        data_path_state_tlv.airplay_sink = flags.airplay_sink;
+        data_path_state_tlv.rangeable = flags.rangeable;
+        data_path_state_tlv.dualband_support = flags.dualband_support;
+        if flags.extension_flags {
+            let extended_flags =
+                DataPathExtendedFlags::from_representation(<u16 as ReadCtx<&Endian>>::from_bytes(
+                    data,
+                    &Endian::Little,
+                )?);
 
             if let Some(channel) = channel {
                 data_path_state_tlv.channel = Some(DataPathChannel::from_u16(
                     channel,
-                    !check_bit!(extended_flags, EXTENDED_FLAGS_IS_CHANNEL_MAP),
+                    !extended_flags.is_channel_map,
                 ));
             }
-            data_path_state_tlv.ranging_discovery =
-                check_bit!(extended_flags, EXTENDED_FLAGS_RANGING_DISCOVERY);
-            data_path_state_tlv.sdb = check_bit!(extended_flags, EXTENDED_FLAGS_SDB);
-            data_path_state_tlv.dfs_proxy_support =
-                check_bit!(extended_flags, EXTENDED_FLAGS_DFS_PROXY_SUPPORT);
-            if check_bit!(extended_flags, EXTENDED_FLAGS_LOGTRIGGER_ID) {
+            data_path_state_tlv.ranging_discovery = extended_flags.ranging_discovery;
+            data_path_state_tlv.sdb = extended_flags.sdb;
+            data_path_state_tlv.dfs_proxy_support = extended_flags.dfs_proxy_support;
+            if extended_flags.log_trigger_id {
                 data_path_state_tlv.log_trigger_id = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?)
             }
-            if check_bit!(extended_flags, EXTENDED_FLAGS_RLFC) {
+            if extended_flags.rlfc {
                 data_path_state_tlv.rlfc = Some(<u32 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?);
             }
-            if check_bit!(extended_flags, EXTENDED_FLAGS_MISC) {
+            if extended_flags.misc {
                 data_path_state_tlv.misc = DataPathMisc::from_bytes(
                     &try_take(data, 12)
                         .map_err(ParserError::TooLittleData)?
@@ -162,10 +176,10 @@ impl Read for DataPathStateTLV {
 #[cfg(feature = "write")]
 impl Write for DataPathStateTLV {
     fn to_bytes(&self) -> alloc::vec::Vec<u8> {
-        let mut flags = 0u16;
+        let mut flags = DataPathFlags::default();
         let mut bytes = vec![];
         if let Some(country_code) = self.country_code {
-            set_bit!(flags, FLAG_COUNTRY_CODE);
+            flags.country_code = true;
 
             bytes.extend(
                 country_code
@@ -175,12 +189,11 @@ impl Write for DataPathStateTLV {
             );
         }
         if let Some(channel) = self.channel {
-            set_bit!(flags, FLAG_CHANNEL_MAP);
+            flags.channel_map = true;
             bytes.extend(channel.as_u16().to_le_bytes());
         }
         if let Some((mac_address, channel)) = self.infra_bssid_channel {
-            set_bit!(flags, FLAG_INFRA_BSSID_CHANNEL);
-
+            flags.infra_bssid_channel = true;
             bytes.extend(
                 mac_address
                     .into_iter()
@@ -188,18 +201,15 @@ impl Write for DataPathStateTLV {
             );
         }
         if let Some(infra_address) = self.infra_address {
-            set_bit!(flags, FLAG_INFRA_ADDRESS);
-
+            flags.infra_address = true;
             bytes.extend(infra_address.iter());
         }
         if let Some(awdl_address) = self.awdl_address {
-            set_bit!(flags, FLAG_AWDL_ADDRESS);
-
+            flags.awdl_address = true;
             bytes.extend(awdl_address.iter());
         }
         if let Some(unicast_options) = &self.unicast_options {
-            set_bit!(flags, FLAG_UNICAST_OPTIONS);
-
+            flags.unicast_options = true;
             bytes.extend(
                 (unicast_options.len() as u16)
                     .to_le_bytes()
@@ -208,55 +218,41 @@ impl Write for DataPathStateTLV {
             )
         }
         if let Some(umi) = self.umi {
-            set_bit!(flags, FLAG_UMI);
-
+            flags.umi = true;
             bytes.extend(umi.to_le_bytes());
         }
-        set_bit!(flags, FLAG_IS_AIRPLAY, self.is_airplay);
-        set_bit!(flags, FLAG_IS_RANGEABLE, self.is_rangeable);
-        set_bit!(flags, FLAG_DUALBAND_SUPPORT, self.dualband_support);
-        set_bit!(flags, FLAG_EXTENSION_FLAGS);
+        flags.airplay_sink = self.airplay_sink;
+        flags.rangeable = self.rangeable;
+        flags.dualband_support = self.dualband_support;
+        flags.extension_flags = true;
 
-        let mut extended_flags = 0u16;
+        let mut extended_flags = DataPathExtendedFlags::default();
         let mut extended_bytes = vec![];
 
         if let Some(log_trigger_id) = self.log_trigger_id {
-            set_bit!(extended_flags, EXTENDED_FLAGS_LOGTRIGGER_ID);
-
+            extended_flags.log_trigger_id = true;
             extended_bytes.extend(log_trigger_id.to_le_bytes());
         }
         if let Some(rlfc) = self.rlfc {
-            set_bit!(extended_flags, EXTENDED_FLAGS_RLFC);
-
+            extended_flags.rlfc = true;
             extended_bytes.extend(rlfc.to_le_bytes());
         }
         if let Some(misc) = &self.misc {
-            set_bit!(extended_flags, EXTENDED_FLAGS_MISC);
-
+            extended_flags.misc = true;
             extended_bytes.extend(misc.to_bytes());
         }
-        set_bit!(
-            extended_flags,
-            EXTENDED_FLAGS_RANGING_DISCOVERY,
-            self.ranging_discovery
-        );
-        set_bit!(
-            extended_flags,
-            EXTENDED_FLAGS_IS_CHANNEL_MAP,
-            self.channel
-                .is_some_and(|x| matches!(x, DataPathChannel::SingleChannel { .. }))
-        );
-        set_bit!(extended_flags, EXTENDED_FLAGS_SDB, self.sdb);
-        set_bit!(
-            extended_flags,
-            EXTENDED_FLAGS_DFS_PROXY_SUPPORT,
-            self.dfs_proxy_support
-        );
+        extended_flags.ranging_discovery = self.ranging_discovery;
+        extended_flags.is_channel_map = self
+            .channel
+            .is_some_and(|x| matches!(x, DataPathChannel::SingleChannel { .. }));
+        extended_flags.sdb = self.sdb;
+        extended_flags.dfs_proxy_support = self.dfs_proxy_support;
         flags
+            .to_representation()
             .to_le_bytes()
             .into_iter()
             .chain(bytes)
-            .chain(extended_flags.to_le_bytes())
+            .chain(extended_flags.to_representation().to_le_bytes())
             .chain(extended_bytes)
             .collect()
     }
