@@ -1,4 +1,4 @@
-use macro_bits::{serializable_enum, bitfield, bit};
+use macro_bits::{bit, bitfield, serializable_enum};
 
 serializable_enum! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]

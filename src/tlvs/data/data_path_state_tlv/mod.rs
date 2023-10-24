@@ -1,19 +1,20 @@
 mod misc;
 
+use core::iter::repeat;
+
 #[cfg(feature = "read")]
 use try_take::try_take;
 
 #[cfg(feature = "write")]
 use alloc::vec;
-use alloc::vec::Vec;
 use bin_utils::*;
 use mac_parser::MACAddress;
 use macro_bits::{bit, bitfield};
 
 use crate::tlvs::{impl_tlv_conversion, TLVType};
 
-use self::misc::DataPathChannel;
-pub use self::misc::DataPathMisc;
+pub use self::misc::DataPathStats;
+use self::misc::{DataPathChannel, UnicastOptions};
 
 bitfield! {
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -22,12 +23,14 @@ bitfield! {
         pub infra_bssid_channel: bool => bit!(0),
         pub infra_address: bool => bit!(1),
         pub awdl_address: bool => bit!(2),
-        pub umi: bool => bit!(4),
+        pub is_umi: bool => bit!(4),
         pub dualband_support: bool => bit!(5),
         pub airplay_sink: bool => bit!(6),
+        pub follow_channel_sequence: bool => bit!(7),
         pub country_code: bool => bit!(8),
         pub channel_map: bool => bit!(9),
         pub airplay_solo_mode: bool => bit!(10),
+        pub umi_support: bool => bit!(11),
         pub unicast_options: bool => bit!(12),
         pub is_realtime: bool => bit!(13),
         pub rangeable: bool => bit!(14),
@@ -37,14 +40,14 @@ bitfield! {
 bitfield! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone, Default, PartialEq)]
-    struct DataPathExtendedFlags: u16 {
-        pub log_trigger_id: bool => bit!(0),
-        pub ranging_discovery: bool => bit!(1),
+    struct DataPathExtendedFlags: u32 {
+        pub ranging_discovery_supported: bool => bit!(0),
+        pub log_trigger_id: bool => bit!(1),
         pub rlfc: bool => bit!(2),
-        pub channel_map_changed: bool => bit!(3),
-        pub sdb_active: bool => bit!(4),
-        pub dfs_proxy_support: bool => bit!(5),
-        pub misc: bool => bit!(6)
+        pub dynamic_sdb_active: bool => bit!(4),
+        pub misc: bool => bit!(5),
+        pub dfs_proxy_supported: bool => bit!(6),
+        pub high_efficiency_supported: bool => bit!(8)
     }
 }
 
@@ -57,8 +60,7 @@ pub struct DataPathStateTLV {
     pub infra_bssid_channel: Option<(MACAddress, u8)>,
     pub infra_address: Option<MACAddress>,
     pub awdl_address: Option<MACAddress>,
-    pub unicast_options: Option<Vec<u8>>,
-    pub umi: Option<u16>,
+    pub unicast_options: Option<UnicastOptions>,
 
     pub airplay_sink: bool,
     pub airplay_solo_mode: bool,
@@ -66,13 +68,13 @@ pub struct DataPathStateTLV {
     pub dualband_support: bool,
     pub is_realtime: bool,
 
-    pub rlfc: Option<u16>,
-    pub log_trigger_id: Option<u32>,
-    pub misc: Option<DataPathMisc>,
+    pub rlfc: Option<u32>,
+    pub log_trigger_id: Option<u16>,
+    pub misc: Option<DataPathStats>,
 
-    pub ranging_discovery: bool,
-    pub sdb: bool,
-    pub dfs_proxy_support: bool,
+    pub ranging_discovery_supported: bool,
+    pub dynamic_sdb_supported: bool,
+    pub dfs_proxy_supported: bool,
 }
 #[cfg(feature = "read")]
 impl Read for DataPathStateTLV {
@@ -91,9 +93,8 @@ impl Read for DataPathStateTLV {
             data_path_state_tlv.country_code = Some(data.next_chunk().unwrap());
             let _ = data.next();
         }
-        let mut channel = None;
         if flags.channel_map {
-            channel = <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little).ok();
+            data_path_state_tlv.channel = Some(DataPathChannel::from_u16(<u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?));
         }
         if flags.infra_bssid_channel {
             let mut data = try_take(data, 8).map_err(ParserError::TooLittleData)?;
@@ -119,18 +120,10 @@ impl Read for DataPathStateTLV {
             )?);
         }
         if flags.unicast_options {
-            let umi_options_length = <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?;
-            data_path_state_tlv.unicast_options = Some(
-                try_take(data, umi_options_length as usize)
-                    .map_err(ParserError::TooLittleData)?
-                    .collect(),
-            );
-        }
-        if flags.umi {
-            data_path_state_tlv.umi = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
-                data,
-                &Endian::Little,
-            )?);
+            let _ = data.advance_by(2);
+                data_path_state_tlv.unicast_options = Some(UnicastOptions::from_representation(
+                    u32::from_le_bytes(data.chain(repeat(0)).next_chunk().unwrap()),
+                ));
         }
         data_path_state_tlv.airplay_sink = flags.airplay_sink;
         data_path_state_tlv.airplay_solo_mode = flags.airplay_solo_mode;
@@ -139,34 +132,28 @@ impl Read for DataPathStateTLV {
         data_path_state_tlv.is_realtime = flags.is_realtime;
         if flags.extension_flags {
             let extended_flags =
-                DataPathExtendedFlags::from_representation(<u16 as ReadCtx<&Endian>>::from_bytes(
+                DataPathExtendedFlags::from_representation(<u32 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?);
-
-            if let Some(channel) = channel {
-                data_path_state_tlv.channel = Some(DataPathChannel::from_u16(
-                    channel,
-                    !extended_flags.channel_map_changed,
-                ));
-            }
-            data_path_state_tlv.ranging_discovery = extended_flags.ranging_discovery;
-            data_path_state_tlv.sdb = extended_flags.sdb_active;
-            data_path_state_tlv.dfs_proxy_support = extended_flags.dfs_proxy_support;
+            data_path_state_tlv.ranging_discovery_supported =
+                extended_flags.ranging_discovery_supported;
+            data_path_state_tlv.dynamic_sdb_supported = extended_flags.dynamic_sdb_active;
+            data_path_state_tlv.dfs_proxy_supported = extended_flags.dfs_proxy_supported;
             if extended_flags.rlfc {
-                data_path_state_tlv.rlfc = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
+                data_path_state_tlv.rlfc = Some(<u32 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?);
             }
             if extended_flags.log_trigger_id {
-                data_path_state_tlv.log_trigger_id = Some(<u32 as ReadCtx<&Endian>>::from_bytes(
+                data_path_state_tlv.log_trigger_id = Some(<u16 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?)
             }
             if extended_flags.misc {
-                data_path_state_tlv.misc = DataPathMisc::from_bytes(
+                data_path_state_tlv.misc = DataPathStats::from_bytes(
                     &try_take(data, 12)
                         .map_err(ParserError::TooLittleData)?
                         .next_chunk()
@@ -217,15 +204,11 @@ impl Write for DataPathStateTLV {
         if let Some(unicast_options) = &self.unicast_options {
             flags.unicast_options = true;
             bytes.extend(
-                (unicast_options.len() as u16)
+                    4u16
                     .to_le_bytes()
                     .into_iter()
-                    .chain(unicast_options.iter().copied()),
+                    .chain(unicast_options.to_representation().to_le_bytes()),
             )
-        }
-        if let Some(umi) = self.umi {
-            flags.umi = true;
-            bytes.extend(umi.to_le_bytes());
         }
         flags.airplay_sink = self.airplay_sink;
         flags.rangeable = self.rangeable;
@@ -238,7 +221,7 @@ impl Write for DataPathStateTLV {
         if let Some(rlfc) = self.rlfc {
             extended_flags.rlfc = true;
             extended_bytes.extend(rlfc.to_le_bytes());
-        }   
+        }
         if let Some(log_trigger_id) = self.log_trigger_id {
             extended_flags.log_trigger_id = true;
             extended_bytes.extend(log_trigger_id.to_le_bytes());
@@ -247,12 +230,9 @@ impl Write for DataPathStateTLV {
             extended_flags.misc = true;
             extended_bytes.extend(misc.to_bytes());
         }
-        extended_flags.ranging_discovery = self.ranging_discovery;
-        extended_flags.channel_map_changed = self
-            .channel
-            .is_some_and(|x| matches!(x, DataPathChannel::SingleChannel { .. }));
-        extended_flags.sdb_active = self.sdb;
-        extended_flags.dfs_proxy_support = self.dfs_proxy_support;
+        extended_flags.ranging_discovery_supported = self.ranging_discovery_supported;
+        extended_flags.dynamic_sdb_active = self.dynamic_sdb_supported;
+        extended_flags.dfs_proxy_supported = self.dfs_proxy_supported;
         flags
             .to_representation()
             .to_le_bytes()
@@ -267,5 +247,6 @@ impl_tlv_conversion!(false, DataPathStateTLV, TLVType::DataPathState, 2);
 #[test]
 fn test_data_path_state_tlv() {
     let bytes = include_bytes!("../../../../test_bins/data_path_state_tlv.bin")[3..].to_vec();
-    let _ = DataPathStateTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let data_path_state = DataPathStateTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    panic!("{data_path_state:#?}")
 }

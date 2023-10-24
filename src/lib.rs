@@ -1,6 +1,7 @@
 #![feature(
     iter_array_chunks,
     iter_next_chunk,
+    iter_advance_by,
     exact_size_is_empty,
     more_qualified_paths,
     array_chunks,
