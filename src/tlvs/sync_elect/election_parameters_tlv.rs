@@ -1,10 +1,10 @@
-use bin_utils::*;
 use mac_parser::MACAddress;
+use scroll::{
+    ctx::{MeasureWith, SizeWith, TryFromCtx, TryIntoCtx},
+    Endian, Pread, Pwrite,
+};
 
-use crate::tlvs::{impl_tlv_conversion, TLVType};
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 /// A TLV describing the election parameters of a peer.
 pub struct ElectionParametersTLV {
     /// Unknown
@@ -25,56 +25,69 @@ pub struct ElectionParametersTLV {
     /// Own self metric
     pub self_metric: u32,
 }
-#[cfg(feature = "read")]
-impl ReadFixed<21> for ElectionParametersTLV {
-    fn from_bytes(data: &[u8; 21]) -> Result<Self, ParserError> {
-        let mut data = data.iter().copied();
-        let flags = data.next().unwrap();
-        let id = u16::from_le_bytes(data.next_chunk().unwrap()); // In reality this is always zero.
-        let distance_to_master = data.next().unwrap();
-        let _ = data.next();
-        let master_address = MACAddress::from_bytes(&data.next_chunk().unwrap())?; // Infallible
-        let master_metric = u32::from_le_bytes(data.next_chunk().unwrap());
-        let self_metric = u32::from_le_bytes(data.next_chunk().unwrap());
-        Ok(Self {
-            flags,
-            id,
-            distance_to_master,
-            master_address,
-            master_metric,
-            self_metric,
-        })
+impl ElectionParametersTLV {
+    pub const fn size_in_bytes() -> usize {
+        21
     }
 }
-#[cfg(feature = "write")]
-impl WriteFixed<21> for ElectionParametersTLV {
-    fn to_bytes(&self) -> [u8; 21] {
-        let mut bytes = [0x00; 21];
-        bytes[0] = self.flags;
-        bytes[1..3].copy_from_slice(&self.id.to_le_bytes());
-        bytes[3] = self.distance_to_master;
-        bytes[5..11].copy_from_slice(&self.master_address.to_bytes());
-        bytes[11..15].copy_from_slice(&self.master_metric.to_le_bytes());
-        bytes[15..19].copy_from_slice(&self.self_metric.to_le_bytes());
-        bytes
+impl SizeWith for ElectionParametersTLV {
+    fn size_with(_ctx: &()) -> usize {
+        Self::size_in_bytes()
     }
 }
-impl_tlv_conversion!(true, ElectionParametersTLV, TLVType::ElectionParameters, 21);
+impl MeasureWith<()> for ElectionParametersTLV {
+    fn measure_with(&self, _ctx: &()) -> usize {
+        Self::size_in_bytes()
+    }
+}
+impl<'a> TryFromCtx<'a> for ElectionParametersTLV {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+
+        let flags = from.gread(&mut offset)?;
+        let id = from.gread_with(&mut offset, Endian::Little)?;
+        let distance_to_master = from.gread(&mut offset)?;
+        offset += 1;
+        let master_address = MACAddress::new(from.gread(&mut offset)?);
+        let master_metric = from.gread_with(&mut offset, Endian::Little)?;
+        let self_metric = from.gread_with(&mut offset, Endian::Little)?;
+
+        Ok((
+            Self {
+                flags,
+                id,
+                distance_to_master,
+                master_address,
+                master_metric,
+                self_metric,
+            },
+            offset,
+        ))
+    }
+}
+impl TryIntoCtx for ElectionParametersTLV {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        buf.gwrite(self.flags, &mut offset)?;
+        buf.gwrite_with(self.id, &mut offset, Endian::Little)?;
+        buf.gwrite(self.distance_to_master, &mut offset)?;
+        offset += 1;
+        buf.gwrite(self.master_address.as_slice(), &mut offset)?;
+        buf.gwrite_with(self.master_metric, &mut offset, Endian::Little)?;
+        buf.gwrite_with(self.self_metric, &mut offset, Endian::Little)?;
+
+        Ok(offset)
+    }
+}
 
 #[cfg(test)]
 #[test]
 fn test_election_parameters_tlv() {
-    use crate::tlvs::{AWDLTLV, TLV};
+    let bytes = &include_bytes!("../../../test_bins/election_parameters_tlv.bin")[3..];
 
-    let bytes = include_bytes!("../../../test_bins/election_parameters_tlv.bin");
-
-    let tlv = TLV::from_bytes(&mut bytes.iter().copied()).unwrap();
-
-    let election_parameters_tlv = ElectionParametersTLV::try_from(tlv.clone()).unwrap();
-    assert_eq!(
-        tlv,
-        <ElectionParametersTLV as Into<AWDLTLV>>::into(election_parameters_tlv.clone())
-    );
+    let election_parameters_tlv = bytes.pread::<ElectionParametersTLV>(0).unwrap();
 
     assert_eq!(
         election_parameters_tlv,
@@ -87,6 +100,7 @@ fn test_election_parameters_tlv() {
             self_metric: 60
         }
     );
-
-    assert_eq!(election_parameters_tlv.to_bytes(), bytes[3..]);
+    let mut buf = [0x00; ElectionParametersTLV::size_in_bytes()];
+    buf.pwrite(election_parameters_tlv, 0).unwrap();
+    assert_eq!(buf, bytes);
 }

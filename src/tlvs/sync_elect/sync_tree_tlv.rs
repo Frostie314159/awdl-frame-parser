@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
-use bin_utils::*;
 use mac_parser::MACAddress;
+use scroll::{
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    Pwrite,
+};
 
-use crate::tlvs::{impl_tlv_conversion, TLVType};
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// This describes the structure of the AWDL mesh.
 /// The contained mac address are in descending order,
 /// with the first one being the mesh master and the other ones being sync masters.
@@ -13,48 +13,52 @@ pub struct SyncTreeTLV {
     /// The MACs.
     pub tree: Vec<MACAddress>,
 }
-#[cfg(feature = "read")]
-impl Read for SyncTreeTLV {
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        Ok(Self {
-            tree: data
-                .array_chunks::<6>()
-                .map(|x| MACAddress::from_bytes(&x).unwrap())
-                .collect(),
-        })
+impl MeasureWith<()> for SyncTreeTLV {
+    fn measure_with(&self, _ctx: &()) -> usize {
+        self.tree.len() * 6
     }
 }
-#[cfg(feature = "write")]
-impl Write for SyncTreeTLV {
-    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
-        self.tree.iter().flat_map(MACAddress::to_bytes).collect()
+impl<'a> TryFromCtx<'a> for SyncTreeTLV {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let tree = from
+            .array_chunks::<6>()
+            .copied()
+            .map(MACAddress::new)
+            .collect();
+        Ok((Self { tree }, from.len() / 6))
     }
 }
-impl_tlv_conversion!(false, SyncTreeTLV, TLVType::SynchronizationTree, 0);
+impl TryIntoCtx for SyncTreeTLV {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        for address in self.tree {
+            buf.gwrite(address.as_slice(), &mut offset)?;
+        }
+        Ok(offset)
+    }
+}
 
 #[cfg(test)]
 #[test]
 fn test_sync_tree_tlv() {
-    use crate::tlvs::AWDLTLV;
-    let bytes = include_bytes!("../../../test_bins/sync_tree_tlv.bin");
+    use alloc::vec;
+    use mac_parser::ZERO;
+    use scroll::Pread;
 
-    let tlv = AWDLTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let bytes = &include_bytes!("../../../test_bins/sync_tree_tlv.bin")[3..];
 
-    let sync_tree_tlv = SyncTreeTLV::try_from(tlv.clone()).unwrap();
-    assert_eq!(
-        tlv,
-        <SyncTreeTLV as Into<AWDLTLV>>::into(sync_tree_tlv.clone())
-    );
+    let sync_tree_tlv = bytes.pread::<SyncTreeTLV>(0).unwrap();
 
     assert_eq!(
         sync_tree_tlv,
         SyncTreeTLV {
-            tree: alloc::vec![
-                [0xbe, 0x70, 0xf3, 0x17, 0x21, 0xf2].into(),
-                [0x00; 6].into()
-            ]
+            tree: vec![[0xbe, 0x70, 0xf3, 0x17, 0x21, 0xf2].into(), ZERO]
         }
     );
 
-    assert_eq!(sync_tree_tlv.to_bytes(), &bytes[3..]);
+    let mut buf = vec![0x00; sync_tree_tlv.measure_with(&())];
+    buf.pwrite(sync_tree_tlv, 0).unwrap();
+    assert_eq!(buf, bytes);
 }

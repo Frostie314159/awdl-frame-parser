@@ -1,209 +1,271 @@
-#[cfg(feature = "data_tlvs")]
-#[doc(cfg(feature = "data_tlvs"))]
 /// TLVs regarding the data path.
-pub mod data;
-#[cfg(feature = "dns_sd_tlvs")]
-#[doc(cfg(feature = "dns_sd_tlvs"))]
+pub mod data_path;
 /// TLVs containing data about dns services.
 pub mod dns_sd;
-#[cfg(feature = "sync_elect_tlvs")]
-#[doc(cfg(feature = "sync_elect_tlvs"))]
 /// TLVs about the synchronization and election state of the peer.
 pub mod sync_elect;
-#[cfg(feature = "version_tlv")]
-#[doc(cfg(feature = "version_tlv"))]
 pub mod version;
+use core::marker::PhantomData;
 
-use bin_utils::*;
-use tlv_rs::TLV;
+use macro_bits::serializable_enum;
+use scroll::{
+    ctx::{TryFromCtx, TryIntoCtx},
+    Endian, Pread, Pwrite,
+};
+use tlv_rs::{raw_tlv::RawTLV, TLV};
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-/// The type of the TLV.
-pub enum TLVType {
-    #[doc(hidden)]
-    #[default]
-    Null,
-    /// The service parameters.
-    ServiceResponse,
+use self::{
+    data_path::{DataPathStateTLV, HTCapabilitiesTLV, IEEE80211ContainerTLV},
+    dns_sd::{ArpaTLV, ServiceParametersTLV, ServiceResponseTLV},
+    sync_elect::{
+        ChannelSequenceTLV, ElectionParametersTLV, ElectionParametersV2TLV, SyncTreeTLV,
+        SynchronizationParametersTLV,
+    },
+    version::VersionTLV,
+};
 
-    /// The synchronization parameters.
-    SynchronizationParameters,
+serializable_enum! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+    /// The type of the TLV.
+    pub enum AWDLTLVType: u8 {
+        #[default]
+        /// Required for `tlv-rs`.
+        Null => 0x00,
 
-    /// The election parameters.
-    ElectionParameters,
+        /// The service parameters.
+        ServiceResponse => 0x02,
 
-    /// The service parameters.
-    ServiceParameters,
+        /// The synchronization parameters.
+        SynchronizationParameters => 0x04,
 
-    /// The HT capabilities.
-    HTCapabilities,
+        /// The election parameters.
+        ElectionParameters => 0x05,
 
-    /// The data path state.
-    DataPathState,
+        /// The service parameters.
+        ServiceParameters => 0x06,
 
-    /// The hostname of the peer.
-    Arpa,
+        /// The HT capabilities.
+        HTCapabilities => 0x07,
 
-    /// The VHT capabilities.
-    VHTCapabilities,
+        /// The data path state.
+        DataPathState => 0x0C,
 
-    /// The channel sequence.
-    ChannelSequence,
+        /// The hostname of the peer.
+        Arpa => 0x10,
 
-    /// The synchronization tree.
-    SynchronizationTree,
+        /// The VHT capabilities.
+        IEEE80211Container => 0x11,
 
-    /// The actual version of the AWDL protocol, that's being used.
-    Version,
+        /// The channel sequence.
+        ChannelSequence => 0x12,
 
-    /// The V2 Election Parameters.
-    ElectionParametersV2,
+        /// The synchronization tree.
+        SynchronizationTree => 0x14,
 
-    Unknown(u8),
+        /// The actual version of the AWDL protocol, that's being used.
+        Version => 0x15,
+
+        /// The V2 Election Parameters.
+        ElectionParametersV2 => 0x18
+    }
 }
-enum_to_int! {
-    u8,
-    TLVType,
 
-    0x00,
-    TLVType::Null,
-    0x02,
-    TLVType::ServiceResponse,
-    0x04,
-    TLVType::SynchronizationParameters,
-    0x05,
-    TLVType::ElectionParameters,
-    0x06,
-    TLVType::ServiceParameters,
-    0x07,
-    TLVType::HTCapabilities,
-    0x0C,
-    TLVType::DataPathState,
-    0x10,
-    TLVType::Arpa,
-    0x11,
-    TLVType::VHTCapabilities,
-    0x12,
-    TLVType::ChannelSequence,
-    0x14,
-    TLVType::SynchronizationTree,
-    0x15,
-    TLVType::Version,
-    0x18,
-    TLVType::ElectionParametersV2
+pub type RawAWDLTLV<'a> = RawTLV<'a, u8, u16>;
+pub type TypedAWDLTLV<'a, Payload> = TLV<u8, u16, AWDLTLVType, Payload>;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AWDLTLV<'a> {
+    ServiceResponse(ServiceResponseTLV<'a>),
+    SynchronizationParameters(SynchronizationParametersTLV),
+    ElectionParameters(ElectionParametersTLV),
+    ServiceParameters(ServiceParametersTLV),
+    HTCapabilities(HTCapabilitiesTLV),
+    DataPathState(DataPathStateTLV),
+    Arpa(ArpaTLV<'a>),
+    IEEE80211Container(IEEE80211ContainerTLV<'a>),
+    ChannelSequence(ChannelSequenceTLV),
+    SynchronizationTree(SyncTreeTLV),
+    Version(VersionTLV),
+    ElectionParametersV2(ElectionParametersV2TLV),
+    Unknown(RawAWDLTLV<'a>),
 }
-pub type AWDLTLV = TLV<u8, TLVType, u16, false>;
-#[cfg(feature = "read")]
-#[derive(Debug)]
-/// Errors that can occur while converting an AWDLTLV to a specific type.
-pub enum FromTLVError {
-    IncorrectTlvType,
-    IncorrectTlvLength,
-    NoData,
-    ParserError(ParserError),
+impl<'a> AWDLTLV<'a> {
+    pub const fn get_type(&self) -> AWDLTLVType {
+        match self {
+            AWDLTLV::Arpa(_) => AWDLTLVType::Arpa,
+            AWDLTLV::ChannelSequence(_) => AWDLTLVType::ChannelSequence,
+            AWDLTLV::DataPathState(_) => AWDLTLVType::DataPathState,
+            AWDLTLV::ElectionParameters(_) => AWDLTLVType::ElectionParameters,
+            AWDLTLV::ElectionParametersV2(_) => AWDLTLVType::ElectionParametersV2,
+            AWDLTLV::HTCapabilities(_) => AWDLTLVType::HTCapabilities,
+            AWDLTLV::IEEE80211Container(_) => AWDLTLVType::IEEE80211Container,
+            AWDLTLV::ServiceParameters(_) => AWDLTLVType::ServiceParameters,
+            AWDLTLV::ServiceResponse(_) => AWDLTLVType::ServiceResponse,
+            AWDLTLV::SynchronizationParameters(_) => AWDLTLVType::SynchronizationParameters,
+            AWDLTLV::SynchronizationTree(_) => AWDLTLVType::SynchronizationTree,
+            AWDLTLV::Version(_) => AWDLTLVType::Version,
+            AWDLTLV::Unknown(raw_tlv) => AWDLTLVType::Unknown(raw_tlv.tlv_type),
+        }
+    }
 }
-macro_rules! impl_tlv_conversion {
-    (true, $ntype:ty, $tlv_type:expr, $tlv_length:expr) => {
-        #[cfg(feature = "write")]
-        impl From<$ntype> for $crate::tlvs::AWDLTLV {
-            fn from(value: $ntype) -> Self {
-                Self {
-                    tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes().to_vec(),
-                    ..core::default::Default::default()
+impl<'a> TryFromCtx<'a> for AWDLTLV<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let (raw_tlv, len) =
+            <RawAWDLTLV<'a> as TryFromCtx<'a, Endian>>::try_from_ctx(from, Endian::Little)?;
+        Ok((
+            match AWDLTLVType::from_representation(raw_tlv.tlv_type) {
+                AWDLTLVType::ServiceResponse => Self::ServiceResponse(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::SynchronizationParameters => {
+                    Self::SynchronizationParameters(raw_tlv.slice.pread(0)?)
                 }
-            }
-        }
-        #[cfg(feature = "read")]
-        impl TryFrom<$crate::tlvs::AWDLTLV> for $ntype {
-            type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
-                if value.tlv_data.len() != $tlv_length {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
+                AWDLTLVType::ElectionParameters => {
+                    Self::ElectionParameters(raw_tlv.slice.pread(0)?)
                 }
-                if value.tlv_type != $tlv_type {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
+                AWDLTLVType::ServiceParameters => Self::ServiceParameters(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::HTCapabilities => Self::HTCapabilities(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::DataPathState => Self::DataPathState(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::Arpa => Self::Arpa(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::IEEE80211Container => {
+                    Self::IEEE80211Container(raw_tlv.slice.pread(0)?)
                 }
-                Self::from_bytes(&value.tlv_data.into_iter().next_chunk().unwrap())
-                    .map_err($crate::tlvs::FromTLVError::ParserError)
-            }
-        }
-    };
-    (false, $ntype:ident <$lt:lifetime>, $tlv_type:expr, $tlv_length:expr) => {
-        #[cfg(feature = "write")]
-        impl<'a> From<$ntype<$lt>> for $crate::tlvs::AWDLTLV {
-            fn from(value: $ntype) -> Self {
-                Self {
-                    tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes(),
-                    ..core::default::Default::default()
+                AWDLTLVType::ChannelSequence => Self::ChannelSequence(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::SynchronizationTree => {
+                    Self::SynchronizationTree(raw_tlv.slice.pread(0)?)
                 }
-            }
-        }
-        #[cfg(feature = "read")]
-        impl<'a> TryFrom<$crate::tlvs::AWDLTLV> for $ntype<$lt> {
-            type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
-                if value.tlv_data.len() < $tlv_length {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
+                AWDLTLVType::Version => Self::Version(raw_tlv.slice.pread(0)?),
+                AWDLTLVType::ElectionParametersV2 => {
+                    Self::ElectionParametersV2(raw_tlv.slice.pread(0)?)
                 }
-                if value.tlv_type != $tlv_type {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
-                }
-                Self::from_bytes(&mut value.tlv_data.into_iter())
-                    .map_err($crate::tlvs::FromTLVError::ParserError)
-            }
-        }
-    };
-    (false, $ntype:ident, $tlv_type:expr, 0) => {
-        #[cfg(feature = "write")]
-        impl<'a> From<$ntype> for $crate::tlvs::AWDLTLV {
-            fn from(value: $ntype) -> Self {
-                Self {
-                    tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes().to_vec(),
-                    ..core::default::Default::default()
-                }
-            }
-        }
-        #[cfg(feature = "read")]
-        impl<'a> TryFrom<$crate::tlvs::AWDLTLV> for $ntype {
-            type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
-                if value.tlv_type != $tlv_type {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
-                }
-                Self::from_bytes(&mut value.tlv_data.into_iter())
-                    .map_err($crate::tlvs::FromTLVError::ParserError)
-            }
-        }
-    };
-    (false, $ntype:ident, $tlv_type:expr, $tlv_length:expr) => {
-        #[cfg(feature = "write")]
-        impl<'a> From<$ntype> for $crate::tlvs::AWDLTLV {
-            fn from(value: $ntype) -> Self {
-                Self {
-                    tlv_type: $tlv_type,
-                    tlv_data: value.to_bytes(),
-                    ..core::default::Default::default()
-                }
-            }
-        }
-        #[cfg(feature = "read")]
-        impl<'a> TryFrom<$crate::tlvs::AWDLTLV> for $ntype {
-            type Error = $crate::tlvs::FromTLVError;
-            fn try_from(value: $crate::tlvs::AWDLTLV) -> Result<Self, Self::Error> {
-                if value.tlv_data.len() < $tlv_length {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvLength);
-                }
-                if value.tlv_type != $tlv_type {
-                    return Err($crate::tlvs::FromTLVError::IncorrectTlvType);
-                }
-                Self::from_bytes(&mut value.tlv_data.into_iter())
-                    .map_err($crate::tlvs::FromTLVError::ParserError)
-            }
-        }
-    };
+                AWDLTLVType::Unknown(tlv_type) => Self::Unknown(RawTLV {
+                    tlv_type,
+                    slice: raw_tlv.slice,
+                    _phantom: PhantomData,
+                }),
+                AWDLTLVType::Null => Self::Unknown(RawTLV {
+                    tlv_type: 0,
+                    slice: raw_tlv.slice,
+                    _phantom: PhantomData,
+                }),
+            },
+            len,
+        ))
+    }
 }
-pub(crate) use impl_tlv_conversion;
+impl TryIntoCtx for AWDLTLV<'_> {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let tlv_type = self.get_type();
+        match self {
+            AWDLTLV::ServiceResponse(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::SynchronizationParameters(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::ElectionParameters(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::ServiceParameters(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::HTCapabilities(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::DataPathState(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::Arpa(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::IEEE80211Container(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::ChannelSequence(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::SynchronizationTree(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::Version(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::ElectionParametersV2(payload) => buf.pwrite_with(
+                TypedAWDLTLV {
+                    tlv_type,
+                    payload,
+                    _phantom: PhantomData,
+                },
+                0,
+                Endian::Little,
+            ),
+            AWDLTLV::Unknown(tlv) => buf.pwrite(tlv, 0),
+        }
+    }
+}

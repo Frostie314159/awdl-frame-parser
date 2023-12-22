@@ -6,104 +6,102 @@ use core::num::NonZeroU8;
 use channel::*;
 use channel_sequence::*;
 
-use bin_utils::*;
-#[cfg(feature = "read")]
-use try_take::try_take;
+use scroll::{
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    Pread, Pwrite,
+};
 
-use crate::tlvs::{impl_tlv_conversion, TLVType};
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChannelSequenceTLV {
-    /// The channel encoding.
-    pub channel_encoding: ChannelEncoding,
-
     /// The amount of AWs spent on one channel.
     pub step_count: NonZeroU8,
 
     /// The channels.
     pub channel_sequence: ChannelSequence,
 }
-#[cfg(feature = "read")]
-impl Read for ChannelSequenceTLV {
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let mut header = try_take(data, 9).map_err(ParserError::TooLittleData)?;
+impl Default for ChannelSequenceTLV {
+    fn default() -> Self {
+        ChannelSequenceTLV {
+            step_count: NonZeroU8::new(3).unwrap(),
+            channel_sequence: Default::default(),
+        }
+    }
+}
+impl MeasureWith<()> for ChannelSequenceTLV {
+    fn measure_with(&self, ctx: &()) -> usize {
+        9 + self.channel_sequence.measure_with(ctx)
+    }
+}
+impl<'a> TryFromCtx<'a> for ChannelSequenceTLV {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
 
-        let _channel_count = header
-            .next()
-            .unwrap()
-            .checked_add(1)
-            .ok_or(ParserError::ValueNotUnderstood)?; // Don't ask.
-        let channel_encoding = header.next().unwrap().into();
-        let _duplicate_count = header.next().unwrap();
-        let step_count = NonZeroU8::new(
-            header
-                .next()
-                .unwrap()
-                .checked_add(1)
-                .ok_or(ParserError::ValueNotUnderstood)?,
-        )
+        let channel_count = from.gread::<u8>(&mut offset)? + 1;
+        if channel_count != 16 {
+            return Err(scroll::Error::BadInput {
+                size: offset,
+                msg: "Channel sequence length wasn't 16.",
+            });
+        }
+        let channel_encoding = ChannelEncoding::from_representation(from.gread(&mut offset)?);
+        offset += 1; // Skip duplicate count
+        let step_count = NonZeroU8::new(from.gread::<u8>(&mut offset)?.checked_add(1).ok_or(
+            scroll::Error::BadInput {
+                size: offset,
+                msg: "step_count caused overflow",
+            },
+        )?)
         .unwrap();
-        let _fill_channels = u16::from_le_bytes(header.next_chunk().unwrap());
+        offset += 2;
+        let channel_sequence = from.gread_with(&mut offset, channel_encoding)?;
 
-        let channel_sequence = ChannelSequence::from_bytes(data, &channel_encoding)?;
-
-        Ok(Self {
-            channel_encoding,
-            step_count,
-            channel_sequence,
-        })
+        Ok((
+            Self {
+                step_count,
+                channel_sequence,
+            },
+            offset,
+        ))
     }
 }
-#[cfg(feature = "write")]
-impl Write for ChannelSequenceTLV {
-    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
-        let binding = [
-            0x0f,
-            self.channel_encoding.into(),
-            0x00,
-            self.step_count.get() - 1,
-            0xff,
-            0xff,
-        ];
-        let header = binding.iter();
-        let binding = self.channel_sequence.to_bytes();
-        let channel_sequence = binding.iter();
-        let padding = [0; 3].iter();
-        header
-            .chain(channel_sequence.chain(padding))
-            .copied()
-            .collect()
+impl TryIntoCtx for ChannelSequenceTLV {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+
+        buf.gwrite(16u8 - 1, &mut offset)?;
+        buf.gwrite(
+            self.channel_sequence.channel_encoding().to_representation(),
+            &mut offset,
+        )?;
+        offset += 1;
+        buf.gwrite(self.step_count.get() - 1, &mut offset)?;
+        buf.gwrite(0xffffu16, &mut offset)?;
+        buf.gwrite(self.channel_sequence, &mut offset)?;
+        offset += 3;
+        Ok(offset)
     }
 }
-impl_tlv_conversion!(false, ChannelSequenceTLV, TLVType::ChannelSequence, 9);
-
 #[cfg(test)]
 #[test]
 fn test_channel_sequence_tlv() {
-    use crate::tlvs::AWDLTLV;
+    use alloc::vec;
 
-    let bytes = include_bytes!("../../../../test_bins/channel_sequence_tlv.bin");
+    let bytes = &include_bytes!("../../../../test_bins/channel_sequence_tlv.bin")[3..];
 
-    let tlv = AWDLTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
-
-    let channel_sequence_tlv = ChannelSequenceTLV::try_from(tlv.clone()).unwrap();
-    assert_eq!(
-        tlv,
-        <ChannelSequenceTLV as Into<AWDLTLV>>::into(channel_sequence_tlv.clone())
-    );
-
+    let channel_sequence_tlv = bytes.pread::<ChannelSequenceTLV>(0).unwrap();
     assert_eq!(
         channel_sequence_tlv,
         ChannelSequenceTLV {
-            channel_encoding: ChannelEncoding::OpClass,
             step_count: NonZeroU8::new(4).unwrap(),
             channel_sequence: ChannelSequence::fixed_channel_sequence(Channel::OpClass {
                 channel: 0x6,
                 opclass: 0x51
-            }),
+            },),
         }
     );
-
-    assert_eq!(channel_sequence_tlv.to_bytes(), &bytes[3..]);
+    let mut buf = vec![0x00; channel_sequence_tlv.measure_with(&())];
+    buf.as_mut_slice().pwrite(channel_sequence_tlv, 0).unwrap();
+    assert_eq!(buf, bytes);
 }

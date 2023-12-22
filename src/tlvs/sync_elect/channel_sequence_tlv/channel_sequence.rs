@@ -1,20 +1,20 @@
-use bin_utils::*;
-use heapless::Vec;
-#[cfg(feature = "read")]
-use try_take::try_take;
+use core::fmt::Debug;
+use scroll::{
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    Pread, Pwrite,
+};
 
 use super::channel::*;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]
 /// The different types of channel sequences.
 pub enum ChannelSequence {
-    /// This encodes just the channel.
-    Simple(Vec<u8, 16>),
+    /// This en'codes just the channel.
+    Simple([u8; 16]),
     /// This encodes channel flags and the channel it self.
-    Legacy(Vec<(LegacyFlags, u8), 16>),
+    Legacy([(LegacyFlags, u8); 16]),
     /// This encodes first the channel and then the channels opclass.
-    OpClass(Vec<(u8, u8), 16>),
+    OpClass([(u8, u8); 16]),
 }
 impl ChannelSequence {
     #[inline]
@@ -28,53 +28,113 @@ impl ChannelSequence {
     }
     #[inline]
     /// Generates a repeating channel sequence with the argument.
-    pub fn fixed_channel_sequence(channel: Channel) -> Self {
+    pub const fn fixed_channel_sequence(channel: Channel) -> Self {
         match channel {
-            Channel::Simple { channel } => {
-                ChannelSequence::Simple(Vec::from_iter([channel; 16].into_iter()))
-            }
-            Channel::Legacy { flags, channel } => {
-                ChannelSequence::Legacy(Vec::from_iter([(flags, channel); 16].into_iter()))
-            }
+            Channel::Simple { channel } => ChannelSequence::Simple([channel; 16]),
+            Channel::Legacy { flags, channel } => ChannelSequence::Legacy([(flags, channel); 16]),
             Channel::OpClass { channel, opclass } => {
-                ChannelSequence::OpClass(Vec::from_iter([(channel, opclass); 16].into_iter()))
+                ChannelSequence::OpClass([(channel, opclass); 16])
             }
         }
     }
 }
-#[cfg(feature = "read")]
-impl ReadCtx<&ChannelEncoding> for ChannelSequence {
-    fn from_bytes(
-        data: &mut impl ExactSizeIterator<Item = u8>,
-        ctx: &ChannelEncoding,
-    ) -> Result<Self, ParserError> {
-        let channel_sequence_bytes_length = 16 * ctx.size() as usize;
-        let data =
-            try_take(data, channel_sequence_bytes_length).map_err(ParserError::TooLittleData)?;
-        Ok(match ctx {
-            ChannelEncoding::Simple => Self::Simple(Vec::from_iter(data)),
-            ChannelEncoding::Legacy => Self::Legacy(Vec::from_iter(
-                data.array_chunks::<2>().map(|x| (x[0].into(), x[1])),
-            )),
-            ChannelEncoding::OpClass => Self::OpClass(Vec::from_iter(
-                data.array_chunks::<2>().map(|x| (x[0], x[1])),
-            )),
-            ChannelEncoding::Unknown(_) => return Err(ParserError::ValueNotUnderstood),
-        })
+impl Default for ChannelSequence {
+    fn default() -> Self {
+        ChannelSequence::Simple(Default::default())
     }
 }
-#[cfg(feature = "write")]
-impl Write for ChannelSequence {
-    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
+impl Debug for ChannelSequence {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ChannelSequence::Simple(chan_seq) => chan_seq.to_vec(),
-            ChannelSequence::Legacy(chan_seq) => chan_seq
-                .iter()
-                .copied()
-                .flat_map(|(x, y)| [x.into(), y])
-                .collect(),
-            ChannelSequence::OpClass(chan_seq) => {
-                chan_seq.iter().copied().flat_map(|(x, y)| [x, y]).collect()
+            ChannelSequence::Simple(channels) => f.debug_list().entries(channels.iter()).finish(),
+            ChannelSequence::Legacy(channels) => f
+                .debug_list()
+                .entries(channels.iter().map(|(_, channel)| channel))
+                .finish(),
+            ChannelSequence::OpClass(channels) => f
+                .debug_list()
+                .entries(channels.iter().map(|(channel, _)| channel))
+                .finish(),
+        }
+    }
+}
+impl MeasureWith<()> for ChannelSequence {
+    fn measure_with(&self, _ctx: &()) -> usize {
+        16 * match self {
+            ChannelSequence::Legacy(_) | ChannelSequence::OpClass(_) => 2,
+            _ => 1,
+        }
+    }
+}
+impl<'a> TryFromCtx<'a, ChannelEncoding> for ChannelSequence {
+    type Error = scroll::Error;
+    fn try_from_ctx(
+        from: &'a [u8],
+        encoding: ChannelEncoding,
+    ) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        Ok((
+            match encoding {
+                ChannelEncoding::Simple => {
+                    ChannelSequence::Simple(from.gread::<[u8; 16]>(&mut offset)?)
+                }
+                ChannelEncoding::Legacy => ChannelSequence::Legacy({
+                    let mut array = [(LegacyFlags::default(), 0); 16];
+                    for (i, bytes) in from
+                        .gread::<[u8; 32]>(&mut offset)?
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .enumerate()
+                    {
+                        array[i] = (LegacyFlags::from_representation(bytes[0]), bytes[1]);
+                    }
+                    array
+                }),
+                ChannelEncoding::OpClass => ChannelSequence::OpClass({
+                    let mut array = [(0, 0); 16];
+                    for (i, bytes) in from
+                        .gread::<[u8; 32]>(&mut offset)?
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .enumerate()
+                    {
+                        array[i] = (bytes[0], bytes[1]);
+                    }
+                    array
+                }),
+                ChannelEncoding::Unknown(_) => {
+                    return Err(scroll::Error::BadInput {
+                        size: offset,
+                        msg: "Unknown encoding.",
+                    })
+                }
+            },
+            offset,
+        ))
+    }
+}
+impl TryIntoCtx for ChannelSequence {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        match self {
+            ChannelSequence::Simple(channels) => buf.pwrite::<&[u8]>(channels.as_ref(), 0),
+            ChannelSequence::Legacy(channels) => {
+                let mut offset = 0;
+                for (flags, channel) in channels.iter() {
+                    buf.gwrite(flags.to_representation(), &mut offset)?;
+                    buf.gwrite(channel, &mut offset)?;
+                }
+                Ok(offset)
+            }
+            ChannelSequence::OpClass(channels) => {
+                let mut offset = 0;
+                for (channel, opclass) in channels.iter() {
+                    buf.gwrite(channel, &mut offset)?;
+                    buf.gwrite(opclass, &mut offset)?;
+                }
+                Ok(offset)
             }
         }
     }

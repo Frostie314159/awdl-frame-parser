@@ -1,8 +1,6 @@
-use bin_utils::*;
 use macro_bits::{bit, bitfield, check_bit};
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct DataPathStats {
     pub msec_since_activation: u32,
     pub aw_seq_counter: u32,
@@ -32,16 +30,14 @@ impl WriteFixed<12> for DataPathStats {
     }
 }
 bitfield! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Copy, Default, Eq, PartialEq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     pub struct ChannelMap: u16 {
         pub channel_6: bool => bit!(0),
         pub channel_44: bool => bit!(1),
         pub channel_149: bool => bit!(2)
     }
 }
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DataPathChannel {
     SingleChannel { channel: u8 },
     ChannelMap(ChannelMap),
@@ -64,8 +60,7 @@ impl DataPathChannel {
     }
 }
 bitfield! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Copy, Default, PartialEq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     pub struct UnicastOptions: u32 {
         pub start_airplay: bool => bit!(1),
         pub jumpstart_dfs_proxy: bool => bit!(5),

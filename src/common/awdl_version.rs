@@ -1,10 +1,9 @@
-#[cfg(feature = "debug")]
-use core::fmt::Debug;
+use core::fmt::Display;
 
 use macro_bits::bitfield;
 
 bitfield! {
-    #[derive(Clone, Copy, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     /// A version in AWDL format.
     pub struct AWDLVersion: u8 {
         /// The major version.
@@ -25,9 +24,8 @@ impl PartialOrd for AWDLVersion {
         }
     }
 }
-#[cfg(feature = "debug")]
-impl Debug for AWDLVersion {
+impl Display for AWDLVersion {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(&alloc::format!("{}.{}", self.major, self.minor))
+        f.write_fmt(format_args!("{}.{}", self.major, self.minor))
     }
 }

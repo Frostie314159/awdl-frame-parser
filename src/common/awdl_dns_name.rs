@@ -1,114 +1,82 @@
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
+use core::{
+    fmt::{Display, Write},
+    iter::repeat,
+};
 
-use bin_utils::*;
-
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
+use alloc::vec::Vec;
+use scroll::{
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    Pread, Pwrite, NETWORK,
 };
 
 use super::{awdl_dns_compression::AWDLDnsCompression, awdl_str::AWDLStr};
 
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 /// A hostname combined with the [domain](AWDLDnsCompression).
-pub struct AWDLDnsName {
+pub struct AWDLDnsName<'a> {
     /// The labels of the peer.
-    pub labels: Vec<AWDLStr>,
+    pub labels: Vec<AWDLStr<'a>>,
 
     /// The domain in [compressed form](AWDLDnsCompression).
     pub domain: AWDLDnsCompression,
 }
-impl AWDLDnsName {
-    #[inline]
-    /// Turns the string into an Iterator over bytes without allocating.
-    pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
+impl<'a> MeasureWith<()> for AWDLDnsName<'a> {
+    fn measure_with(&self, _ctx: &()) -> usize {
         self.labels
             .iter()
-            .flat_map(AWDLStr::iter)
-            .chain(<AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes())
-    }
-    #[inline]
-    /// Returns the complete length in bytes.
-    pub fn len(&self) -> usize {
-        self.labels.iter().map(|x| x.total_len()).sum::<usize>() + 2
-    }
-    #[inline]
-    /// Returns false if either the labels vector is empty or the only element in the vector is empty.
-    pub fn is_empty(&self) -> bool {
-        match self.labels.get(0) {
-            Some(label) => label.is_empty(),
-            None => true,
-        }
+            .map(AWDLStr::size_in_bytes)
+            .sum::<usize>()
+            + 2
     }
 }
-#[cfg(feature = "read")]
-impl Read for AWDLDnsName {
-    fn from_bytes<'a>(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        if data.len() < 3 {
-            return Err(ParserError::TooLittleData(3 - data.len()));
-        }
-        let mut label_data = data.take(data.len() - 2);
-        let labels = (0..)
-            .map_while(|_| AWDLStr::from_bytes(&mut label_data).ok())
+impl<'a> TryFromCtx<'a> for AWDLDnsName<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        let labels = from.get(..from.len() - 2).ok_or(scroll::Error::BadInput {
+            size: 0x00,
+            msg: "Input too short.",
+        })?;
+        let labels = repeat(())
+            .map_while(|_| labels.gread::<AWDLStr<'_>>(&mut offset).ok())
             .collect();
-        let domain = u16::from_be_bytes(
-            data.next_chunk()
-                .map_err(|_| ParserError::TooLittleData(2))?,
-        )
-        .into();
-
-        Ok(Self { labels, domain })
+        let domain =
+            AWDLDnsCompression::from_representation(from.gread_with(&mut offset, NETWORK)?);
+        Ok((Self { labels, domain }, offset))
     }
 }
-#[cfg(feature = "write")]
-impl Write for AWDLDnsName {
-    fn to_bytes(&self) -> Vec<u8> {
-        if self.labels.len() == 1 {
-            let binding = self.labels[0].to_bytes();
-            let labels = binding.iter().copied();
-            let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain).collect()
-        } else {
-            let labels = self.labels.iter().flat_map(|x| x.to_bytes().to_vec());
-            let domain = <AWDLDnsCompression as Into<u16>>::into(self.domain).to_be_bytes();
-            labels.chain(domain).collect()
+impl<'a> TryIntoCtx for AWDLDnsName<'a> {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        // Using for loop, because of ? operator.
+        for x in self.labels {
+            buf.gwrite(x, &mut offset)?;
         }
+        buf.gwrite_with(self.domain.to_representation(), &mut offset, NETWORK)?;
+        Ok(offset)
     }
 }
-impl ToString for AWDLDnsName {
-    fn to_string(&self) -> String {
-        self.labels
-            .iter()
-            .fold(String::new(), |acc, x| acc + x + ".")
-            + self.domain.to_string()
-    }
-}
-#[cfg(feature = "debug")]
-impl Debug for AWDLDnsName {
+impl Display for AWDLDnsName<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(&self.to_string())
+        for label in self.labels.iter() {
+            f.write_str(&label)?;
+            f.write_char('.')?;
+        }
+        f.write_str(self.domain.to_static_string())
     }
 }
 #[cfg(test)]
 #[test]
 fn test_dns_name() {
     use alloc::vec;
-    let bytes = vec![0x04, 0x61, 0x77, 0x64, 0x6C, 0xc0, 0x0c];
-    let dns_name = <AWDLDnsName as Read>::from_bytes(&mut bytes.iter().copied()).unwrap();
-    assert_eq!(
-        dns_name,
-        AWDLDnsName {
-            labels: vec!["awdl".into()],
-            domain: AWDLDnsCompression::Local
-        }
-    );
-    let dns_name_bytes = dns_name.to_bytes();
-    assert_eq!(bytes, dns_name_bytes);
-    let bytes = vec![
-        0x04, 0x61, 0x77, 0x64, 0x6C, 0x04, 0x61, 0x77, 0x64, 0x6C, 0xc0, 0x0c,
-    ];
-    let dns_name = AWDLDnsName::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let bytes = [
+        0x04, b'a', b'w', b'd', b'l', 0x04, b'a', b'w', b'd', b'l', 0xc0, 0x0c,
+    ]
+    .as_slice();
+    let dns_name = bytes.pread::<AWDLDnsName<'_>>(0).unwrap();
     assert_eq!(
         dns_name,
         AWDLDnsName {
@@ -116,6 +84,7 @@ fn test_dns_name() {
             domain: AWDLDnsCompression::Local
         }
     );
-    let dns_name_bytes = dns_name.to_bytes();
-    assert_eq!(bytes, dns_name_bytes);
+    let mut buf = [0x00; 12];
+    buf.pwrite(dns_name, 0).unwrap();
+    assert_eq!(bytes, buf);
 }

@@ -1,18 +1,20 @@
-use awdl_frame_parser::{
-    action_frame::AWDLActionFrame,
-    tlvs::{version::VersionTLV, TLVType, AWDLTLV},
-};
-use bin_utils::{Read, Write};
+use awdl_frame_parser::{action_frame::AWDLActionFrame, tlvs::AWDLTLV};
+use scroll::Pread;
 
 fn main() {
     let bytes = include_bytes!("../test_bins/mif.bin");
-    let af = AWDLActionFrame::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let af = bytes.pread::<AWDLActionFrame>(0).unwrap();
 
     println!("{af:#?}");
-    assert_eq!(af.to_bytes(), bytes.to_vec());
 
-    let version = af.get_tlvs(TLVType::Version).unwrap()[0].clone(); // Since a TLV could be present multiple times we have to this.
-    let version: VersionTLV = version.try_into().unwrap();
-    println!("awdl version: {version:#?}");
-    let _tlv: AWDLTLV = version.into();
+    println!(
+        "awdl version: {:#?}",
+        af.get_named_tlvs()
+            .find_map(|tlv| if let AWDLTLV::Version(version_tlv) = tlv {
+                Some(version_tlv)
+            } else {
+                None
+            })
+            .unwrap()
+    );
 }

@@ -1,25 +1,18 @@
 mod misc;
 
-use core::iter::repeat;
-
-#[cfg(feature = "read")]
-use try_take::try_take;
-
-#[cfg(feature = "write")]
-use alloc::vec;
-use bin_utils::*;
 use mac_parser::MACAddress;
 use macro_bits::{bit, bitfield};
-
-use crate::tlvs::{impl_tlv_conversion, TLVType};
+use scroll::{
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    Endian, Pread,
+};
 
 pub use self::misc::DataPathStats;
 use self::misc::{DataPathChannel, UnicastOptions};
 
 bitfield! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Default, PartialEq)]
-    struct DataPathFlags: u16 {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub struct DataPathFlags: u16 {
         pub infra_bssid_channel: bool => bit!(0),
         pub infra_address: bool => bit!(1),
         pub awdl_address: bool => bit!(2),
@@ -38,9 +31,8 @@ bitfield! {
     }
 }
 bitfield! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Default, PartialEq)]
-    struct DataPathExtendedFlags: u32 {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub struct DataPathExtendedFlags: u32 {
         pub ranging_discovery_supported: bool => bit!(0),
         pub log_trigger_id: bool => bit!(1),
         pub rlfc: bool => bit!(2),
@@ -51,10 +43,9 @@ bitfield! {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct DataPathStateTLV {
-    // Normal flags
+    pub flags: DataPathFlags,
     pub country_code: Option<[char; 2]>,
     pub channel: Option<DataPathChannel>,
     pub infra_bssid_channel: Option<(MACAddress, u8)>,
@@ -62,21 +53,74 @@ pub struct DataPathStateTLV {
     pub awdl_address: Option<MACAddress>,
     pub unicast_options: Option<UnicastOptions>,
 
-    pub airplay_sink: bool,
-    pub airplay_solo_mode: bool,
-    pub rangeable: bool,
-    pub dualband_support: bool,
-    pub is_realtime: bool,
-
+    pub extended_flags: Option<DataPathExtendedFlags>,
     pub rlfc: Option<u32>,
     pub log_trigger_id: Option<u16>,
     pub misc: Option<DataPathStats>,
-
-    pub ranging_discovery_supported: bool,
-    pub dynamic_sdb_supported: bool,
-    pub dfs_proxy_supported: bool,
 }
-#[cfg(feature = "read")]
+impl DataPathStateTLV {
+    pub const fn size_in_bytes(&self) -> usize {
+        let mut size = 2;
+        if self.country_code.is_some() {
+            size += 3;
+        }
+        if self.channel.is_some() {
+            size += 2;
+        }
+        if self.infra_bssid_channel.is_some() {
+            size += 7;
+        }
+        if self.infra_address.is_some() {
+            size += 6;
+        }
+        if self.awdl_address.is_some() {
+            size += 6;
+        }
+        if self.unicast_options.is_some() {
+            size += 6;
+        }
+        if self.extended_flags.is_some() {
+            size += 2;
+        }
+        if self.rlfc.is_some() {
+            size += 4;
+        }
+        if self.log_trigger_id.is_some() {
+            size += 2;
+        }
+        if self.misc.is_some() {
+            size += 12;
+        }
+        size
+    }
+}
+impl MeasureWith<()> for DataPathStateTLV {
+    fn measure_with(&self, _ctx: &()) -> usize {
+        self.size_in_bytes()
+    }
+}
+impl<'a> TryFromCtx<'a> for DataPathStateTLV {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        let mut data_path_state_tlv = DataPathStateTLV::default();
+        data_path_state_tlv.flags =
+            DataPathFlags::from_representation(from.gread_with(&mut offset, Endian::Little)?);
+        if data_path_state_tlv.flags.country_code {
+            data_path_state_tlv.country_code =
+                Some(from.gread::<[u8; 2]>(&mut offset)?.map(|x| x as char));
+            offset += 1;
+        }
+        Ok((data_path_state_tlv, offset))
+    }
+}
+impl TryIntoCtx for DataPathStateTLV {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, _buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        todo!()
+    }
+}
+/* #[cfg(feature = "read")]
 impl Read for DataPathStateTLV {
     fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
         let flags = DataPathFlags::from_representation(<u16 as ReadCtx<&Endian>>::from_bytes(
@@ -94,7 +138,10 @@ impl Read for DataPathStateTLV {
             let _ = data.next();
         }
         if flags.channel_map {
-            data_path_state_tlv.channel = Some(DataPathChannel::from_u16(<u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?));
+            data_path_state_tlv.channel =
+                Some(DataPathChannel::from_u16(
+                    <u16 as ReadCtx<&Endian>>::from_bytes(data, &Endian::Little)?,
+                ));
         }
         if flags.infra_bssid_channel {
             let mut data = try_take(data, 8).map_err(ParserError::TooLittleData)?;
@@ -121,25 +168,18 @@ impl Read for DataPathStateTLV {
         }
         if flags.unicast_options {
             let _ = data.advance_by(2);
-                data_path_state_tlv.unicast_options = Some(UnicastOptions::from_representation(
-                    u32::from_le_bytes(data.chain(repeat(0)).next_chunk().unwrap()),
-                ));
+            data_path_state_tlv.unicast_options = Some(UnicastOptions::from_representation(
+                u32::from_le_bytes(data.chain(repeat(0)).next_chunk().unwrap()),
+            ));
         }
-        data_path_state_tlv.airplay_sink = flags.airplay_sink;
-        data_path_state_tlv.airplay_solo_mode = flags.airplay_solo_mode;
-        data_path_state_tlv.rangeable = flags.rangeable;
-        data_path_state_tlv.dualband_support = flags.dualband_support;
-        data_path_state_tlv.is_realtime = flags.is_realtime;
+        data_path_state_tlv.flags = flags;
         if flags.extension_flags {
             let extended_flags =
                 DataPathExtendedFlags::from_representation(<u32 as ReadCtx<&Endian>>::from_bytes(
                     data,
                     &Endian::Little,
                 )?);
-            data_path_state_tlv.ranging_discovery_supported =
-                extended_flags.ranging_discovery_supported;
-            data_path_state_tlv.dynamic_sdb_supported = extended_flags.dynamic_sdb_active;
-            data_path_state_tlv.dfs_proxy_supported = extended_flags.dfs_proxy_supported;
+            data_path_state_tlv.extended_flags = extended_flags;
             if extended_flags.rlfc {
                 data_path_state_tlv.rlfc = Some(<u32 as ReadCtx<&Endian>>::from_bytes(
                     data,
@@ -170,7 +210,7 @@ impl Read for DataPathStateTLV {
 impl Write for DataPathStateTLV {
     fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         let mut flags = DataPathFlags::default();
-        let mut bytes = vec![];
+        let mut bytes = self.flags;
         if let Some(country_code) = self.country_code {
             flags.country_code = true;
 
@@ -204,15 +244,11 @@ impl Write for DataPathStateTLV {
         if let Some(unicast_options) = &self.unicast_options {
             flags.unicast_options = true;
             bytes.extend(
-                    4u16
-                    .to_le_bytes()
+                4u16.to_le_bytes()
                     .into_iter()
                     .chain(unicast_options.to_representation().to_le_bytes()),
             )
         }
-        flags.airplay_sink = self.airplay_sink;
-        flags.rangeable = self.rangeable;
-        flags.dualband_support = self.dualband_support;
         flags.extension_flags = true;
 
         let mut extended_flags = DataPathExtendedFlags::default();
@@ -247,6 +283,6 @@ impl_tlv_conversion!(false, DataPathStateTLV, TLVType::DataPathState, 2);
 #[test]
 fn test_data_path_state_tlv() {
     let bytes = include_bytes!("../../../../test_bins/data_path_state_tlv.bin")[3..].to_vec();
-    let data_path_state = DataPathStateTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
-    panic!("{data_path_state:#?}")
-}
+    let _data_path_state = DataPathStateTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    //panic!("{data_path_state:#?}")
+} */

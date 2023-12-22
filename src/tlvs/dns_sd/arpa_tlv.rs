@@ -1,44 +1,51 @@
-use bin_utils::*;
-
-use crate::{
-    common::AWDLDnsName,
-    tlvs::{impl_tlv_conversion, TLVType},
+use scroll::{
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    Pread, Pwrite,
 };
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Default, PartialEq, Eq)]
+use crate::common::AWDLDnsName;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 /// A TLV containing the hostname of the peer. Used for reverse DNS.
-pub struct ArpaTLV {
+pub struct ArpaTLV<'a> {
     /// The actual arpa data.
-    pub arpa: AWDLDnsName,
+    pub arpa: AWDLDnsName<'a>,
 }
-#[cfg(feature = "read")]
-impl Read for ArpaTLV {
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let flags = data.next().ok_or(ParserError::TooLittleData(1))?; // Always 0x03.
-        if flags != 0x03 {
-            return Err(ParserError::InvalidMagic);
-        }
-        let arpa = AWDLDnsName::from_bytes(data)?;
-        Ok(Self { arpa })
+impl<'a> MeasureWith<()> for ArpaTLV<'a> {
+    fn measure_with(&self, ctx: &()) -> usize {
+        self.arpa.measure_with(ctx) + 1
     }
 }
-#[cfg(feature = "write")]
-impl Write for ArpaTLV {
-    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
-        core::iter::once(0x03).chain(self.arpa.to_bytes()).collect()
+impl<'a> TryFromCtx<'a> for ArpaTLV<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        offset += 1; // Skip flags.
+        let arpa = from.gread(&mut offset)?;
+        Ok((Self { arpa }, offset))
     }
 }
-impl_tlv_conversion!(false, ArpaTLV, TLVType::Arpa, 3);
+impl<'a> TryIntoCtx for ArpaTLV<'a> {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        buf.gwrite(0x03u8, &mut offset)?;
+        buf.gwrite(self.arpa, &mut offset)?;
+
+        Ok(offset)
+    }
+}
+//impl_tlv_conversion!(false, ArpaTLV, TLVType::Arpa, 3);
 #[cfg(test)]
 #[test]
 fn test_arpa_tlv() {
     use crate::common::AWDLDnsCompression;
-    use alloc::{borrow::ToOwned, vec};
+    use alloc::vec;
+    use scroll::{Pread, Pwrite};
 
-    let bytes = include_bytes!("../../../test_bins/arpa_tlv.bin")[3..].to_vec();
+    let bytes = &include_bytes!("../../../test_bins/arpa_tlv.bin")[3..];
 
-    let arpa_tlv = ArpaTLV::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let arpa_tlv = bytes.pread::<ArpaTLV<'_>>(0).unwrap();
     assert_eq!(
         arpa_tlv,
         ArpaTLV {
@@ -48,6 +55,9 @@ fn test_arpa_tlv() {
             }
         }
     );
-
-    assert_eq!(arpa_tlv.to_bytes(), bytes.as_slice().to_owned());
+    let mut buf = vec![0x00; arpa_tlv.measure_with(&())];
+    buf.as_mut_slice()
+        .pwrite::<ArpaTLV<'_>>(arpa_tlv, 0)
+        .unwrap();
+    assert_eq!(buf, bytes);
 }

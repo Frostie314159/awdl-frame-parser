@@ -1,8 +1,7 @@
 use macro_bits::{bit, bitfield, serializable_enum};
 
 serializable_enum! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Copy, PartialEq, Eq, Default)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     pub enum SmPwSave: u8 {
         #[default]
         Static => 0,
@@ -11,8 +10,7 @@ serializable_enum! {
     }
 }
 bitfield! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Copy, PartialEq, Eq, Default)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     pub struct HTCapabilitiesInfo: u16 {
         pub ldpc_coding_capability: bool => bit!(0),
         pub support_channel_width: bool => bit!(1),

@@ -1,69 +1,72 @@
 use core::ops::{Deref, DerefMut};
 
-use bin_utils::*;
+use scroll::{
+    ctx::{MeasureWith, StrCtx, TryFromCtx, TryIntoCtx},
+    Pread, Pwrite,
+};
 
-use alloc::string::String;
-#[cfg(feature = "read")]
-use try_take::try_take;
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// A string in the format used by AWDL.
 /// The characters are preceeded by a length byte.
-pub struct AWDLStr(String);
-impl AWDLStr {
-    #[inline]
-    /// Returns the string as an iterator without reallocating.
-    pub fn iter(&self) -> impl Iterator<Item = u8> + '_ {
-        let chars = self.chars().map(|x| x as u8);
-        core::iter::once(self.len() as u8).chain(chars)
-    }
-    #[inline]
-    /// Returns the length of the string in bytes, including the length byte.
-    pub fn total_len(&self) -> usize {
-        self.len() + 1
+pub struct AWDLStr<'a>(&'a str);
+impl<'a> AWDLStr<'a> {
+    pub const fn size_in_bytes(&'a self) -> usize {
+        self.0.len() + 1
     }
 }
-#[cfg(feature = "read")]
-impl Read for AWDLStr {
-    fn from_bytes(data: &mut impl ExactSizeIterator<Item = u8>) -> Result<Self, ParserError> {
-        let length = data.next().ok_or(ParserError::HeaderIncomplete(1))? as usize;
-        let data = try_take(data, length).map_err(ParserError::TooLittleData)?;
-        Ok(Self(data.map(|x| x as char).collect()))
+impl<'a> MeasureWith<()> for AWDLStr<'a> {
+    fn measure_with(&self, _ctx: &()) -> usize {
+        self.size_in_bytes()
     }
 }
-#[cfg(feature = "write")]
-impl Write for AWDLStr {
-    fn to_bytes(&self) -> alloc::vec::Vec<u8> {
-        self.iter().collect()
+impl<'a> TryFromCtx<'a> for AWDLStr<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+
+        let length = from.gread::<u8>(&mut offset)? as usize;
+        let str = from.gread_with::<&'a str>(&mut offset, StrCtx::Length(length))?;
+        Ok((Self(str), offset))
     }
 }
-impl Deref for AWDLStr {
-    type Target = String;
+impl<'a> TryIntoCtx for AWDLStr<'a> {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        if self.len() >= u8::MAX as usize {
+            return Err(scroll::Error::TooBig {
+                size: u8::MAX as usize,
+                len: self.len(),
+            });
+        }
+        buf.gwrite(self.0.len() as u8, &mut offset)?;
+        buf.gwrite(self.0, &mut offset)?;
+        Ok(offset)
+    }
+}
+impl<'a> Deref for AWDLStr<'a> {
+    type Target = &'a str;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl DerefMut for AWDLStr {
+impl<'a> DerefMut for AWDLStr<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-impl From<String> for AWDLStr {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-impl<'a> From<&'a str> for AWDLStr {
+impl<'a> From<&'a str> for AWDLStr<'a> {
     fn from(value: &'a str) -> Self {
-        Self(String::from(value))
+        Self(value)
     }
 }
 #[cfg(test)]
 #[test]
 fn test_awdl_str() {
-    let bytes = [0x06, 0x6c, 0x61, 0x6d, 0x62, 0x64, 0x61];
-    let string = AWDLStr::from_bytes(&mut bytes.iter().copied()).unwrap();
+    let bytes = [0x06, 0x6c, 0x61, 0x6d, 0x62, 0x64, 0x61].as_slice();
+    let string = bytes.pread::<AWDLStr<'_>>(0).unwrap();
     assert_eq!(string, "lambda".into());
-    assert_eq!(bytes.to_vec(), string.to_bytes());
+    let mut buf = [0x00; 7];
+    let _ = buf.pwrite::<AWDLStr<'_>>(string, 0).unwrap();
+    assert_eq!(bytes, buf);
 }

@@ -1,7 +1,7 @@
 use macro_bits::{bit, bitfield, serializable_enum};
 
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     /// This enum contains the three different types of channel encodings.
     pub enum ChannelEncoding : u8 {
         /// Simple channel encoding.
@@ -26,7 +26,7 @@ impl ChannelEncoding {
 }
 
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub enum SupportChannel : u8 {
         Lower => 0x01,
 
@@ -37,7 +37,7 @@ serializable_enum! {
     }
 }
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     /// These are the channel bandwiths supported by AWDL.
     pub enum ChannelBandwidth : u8{
         #[default]
@@ -49,7 +49,7 @@ serializable_enum! {
     }
 }
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     /// This is the band on which the channel lies.
     /// This could potentially be expanded to the 6GHz spectrum as well.
     pub enum Band : u8 {
@@ -61,7 +61,7 @@ serializable_enum! {
     }
 }
 bitfield! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     /// The Flags for the legacy channel encoding.
     pub struct LegacyFlags : u8 {
         pub support_channel: SupportChannel => bit!(0, 1),
@@ -70,8 +70,7 @@ bitfield! {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 /// This enum contains a named channel.
 pub enum Channel {
     Simple { channel: u8 },
@@ -95,8 +94,8 @@ impl Channel {
         match self {
             Self::Simple { channel } => *channel,
             Self::Legacy { flags, channel } => match flags.support_channel {
-                SupportChannel::Lower => *channel + 2,
-                SupportChannel::Upper => *channel - 2,
+                SupportChannel::Lower => *channel - 2,
+                SupportChannel::Upper => *channel + 2,
                 SupportChannel::Primary => *channel,
                 _ => *channel,
             },

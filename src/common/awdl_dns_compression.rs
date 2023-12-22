@@ -1,8 +1,7 @@
 use macro_bits::serializable_enum;
 
 serializable_enum! {
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[derive(Clone, Copy, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     /// Compressed dns-sd domains/services. Compression might be the wrong word though.
     pub enum AWDLDnsCompression: u16 {
         Null => 0xC000,
@@ -38,7 +37,7 @@ serializable_enum! {
     }
 }
 impl AWDLDnsCompression {
-    pub fn to_string(&self) -> &'static str {
+    pub fn to_static_string(&self) -> &'static str {
         match self {
             AWDLDnsCompression::Null => "",
             AWDLDnsCompression::AirPlayTcpLocal => "_airplay._tcp.local",
