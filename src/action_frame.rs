@@ -43,7 +43,7 @@ pub struct AWDLActionFrame<'a> {
     pub tagged_data: &'a [u8],
 }
 impl<'a> AWDLActionFrame<'a> {
-    pub fn get_named_tlvs(&'a self) -> impl Iterator<Item = AWDLTLV<'a>> {
+    pub fn get_named_tlvs(&'a self) -> impl Iterator<Item = AWDLTLV<'a>> + Clone {
         repeat(()).scan(0, |offset, _| self.tagged_data.gread(offset).ok())
     }
 }
