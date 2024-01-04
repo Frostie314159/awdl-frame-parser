@@ -1,6 +1,6 @@
 pub mod dns_record;
 
-use crate::common::AWDLDnsName;
+use crate::common::{AWDLDnsName, AWDLStr, LabelIterator};
 
 use dns_record::AWDLDnsRecord;
 
@@ -9,21 +9,41 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 /// This TLV contains data about services offered by the peer.
-pub struct ServiceResponseTLV<'a> {
+pub struct ServiceResponseTLV<'a, I>
+where
+    I: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    <I as IntoIterator>::IntoIter: Clone,
+{
     /// The fullname of the service.
-    pub name: AWDLDnsName<'a>,
+    pub name: AWDLDnsName<I>,
 
     /// The DNS record contained in this response.
-    pub record: AWDLDnsRecord<'a>,
+    pub record: AWDLDnsRecord<'a, I>,
 }
-impl<'a> MeasureWith<()> for ServiceResponseTLV<'a> {
+impl<'a, LhsIterator, RhsIterator> PartialEq<ServiceResponseTLV<'a, RhsIterator>>
+    for ServiceResponseTLV<'a, LhsIterator>
+where
+    LhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    RhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    <LhsIterator as IntoIterator>::IntoIter: Clone,
+    <RhsIterator as IntoIterator>::IntoIter: Clone,
+{
+    fn eq(&self, other: &ServiceResponseTLV<'a, RhsIterator>) -> bool {
+        self.name == other.name && self.record == other.record
+    }
+}
+impl<'a, I> MeasureWith<()> for ServiceResponseTLV<'a, I>
+where
+    I: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    <I as IntoIterator>::IntoIter: Clone,
+{
     fn measure_with(&self, ctx: &()) -> usize {
         6 + self.name.measure_with(ctx) + self.record.measure_with(ctx)
     }
 }
-impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a> {
+impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a, LabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -36,7 +56,11 @@ impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a> {
         Ok((Self { name, record }, offset))
     }
 }
-impl<'a> TryIntoCtx for ServiceResponseTLV<'a> {
+impl<'a, I> TryIntoCtx for ServiceResponseTLV<'a, I>
+where
+    I: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    <I as IntoIterator>::IntoIter: Clone,
+{
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
         let mut offset = 0;
@@ -57,7 +81,7 @@ mod service_response_tests {
     use scroll::{ctx::MeasureWith, Pread, Pwrite};
 
     use crate::{
-        common::{AWDLDnsCompression, AWDLDnsName},
+        common::{AWDLDnsCompression, AWDLDnsName, LabelIterator},
         tlvs::dns_sd::{dns_record::AWDLDnsRecord, ServiceResponseTLV},
     };
 
@@ -65,7 +89,7 @@ mod service_response_tests {
     fn test_service_response_tlv_ptr() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_ptr.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<'_>>(0).unwrap();
+        let service_response_tlv = bytes.pread::<ServiceResponseTLV<LabelIterator>>(0).unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -73,11 +97,13 @@ mod service_response_tests {
                 name: AWDLDnsName {
                     labels: vec!["_airplay-p2p".into()],
                     domain: AWDLDnsCompression::TcpLocal,
+                    ..Default::default()
                 },
                 record: AWDLDnsRecord::PTR {
                     domain_name: AWDLDnsName {
                         labels: vec!["34FD6A0C9A42@1.021".into()],
                         domain: AWDLDnsCompression::Null,
+                        ..Default::default()
                     }
                 }
             }
@@ -90,7 +116,7 @@ mod service_response_tests {
     fn test_service_response_tlv_srv() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_srv.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<'_>>(0).unwrap();
+        let service_response_tlv = bytes.pread::<ServiceResponseTLV<LabelIterator>>(0).unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -98,6 +124,7 @@ mod service_response_tests {
                 name: AWDLDnsName {
                     labels: vec!["34fd6a0c9a42@1.021".into(), "_airplay-p2p".into()],
                     domain: AWDLDnsCompression::TcpLocal,
+                    ..Default::default()
                 },
                 record: AWDLDnsRecord::SRV {
                     priority: 0,
@@ -106,6 +133,7 @@ mod service_response_tests {
                     target: AWDLDnsName {
                         labels: vec!["dcc83dc2-fae7-4043-8c7a-a8b6bf49eaad".into()],
                         domain: AWDLDnsCompression::Local,
+                        ..Default::default()
                     }
                 }
             }
@@ -118,7 +146,7 @@ mod service_response_tests {
     fn test_service_response_tlv_txt() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_txt.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<'_>>(0).unwrap();
+        let service_response_tlv = bytes.pread::<ServiceResponseTLV<LabelIterator>>(0).unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -126,6 +154,7 @@ mod service_response_tests {
                 name: AWDLDnsName {
                     labels: vec!["6dba48462242".into()],
                     domain: AWDLDnsCompression::AirDropTcpLocal,
+                    ..Default::default()
                 },
                 record: AWDLDnsRecord::TXT {
                     txt_record: alloc::vec!["flags=999".into()]

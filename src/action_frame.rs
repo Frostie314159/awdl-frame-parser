@@ -6,9 +6,12 @@ use scroll::{
 
 #[cfg(feature = "debug")]
 use core::fmt::Debug;
-use core::{iter::repeat, fmt::Debug};
+use core::{fmt::Debug, iter::repeat};
 
-use crate::tlvs::AWDLTLV;
+use crate::{
+    common::LabelIterator,
+    tlvs::{sync_elect::ReadMACIterator, AWDLTLV},
+};
 
 serializable_enum! {
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -21,7 +24,7 @@ serializable_enum! {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// An AWDL AF(**A**ction **F**rame).
 pub struct AWDLActionFrame<'a> {
     /**
@@ -43,21 +46,26 @@ pub struct AWDLActionFrame<'a> {
     pub tagged_data: &'a [u8],
 }
 impl<'a> AWDLActionFrame<'a> {
-    pub fn get_named_tlvs(&'a self) -> impl Iterator<Item = AWDLTLV<'a>> + Clone {
+    pub fn get_named_tlvs(
+        &'a self,
+    ) -> impl Iterator<Item = AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>>> + Clone {
         repeat(()).scan(0, |offset, _| self.tagged_data.gread(offset).ok())
     }
 }
-impl Debug for AWDLActionFrame<'_> {
+/* impl Debug for AWDLActionFrame<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let debuged_list = f.debug_list().entries(self.get_named_tlvs()).finish();
         f.debug_struct("AWDLActionFrame")
             .field("subtype", &self.subtype)
             .field("phy_tx_time", &self.phy_tx_time)
             .field("target_tx_time", &self.target_tx_time)
-            .field_with("tagged_data", |f| f.debug_list().entries(self.get_named_tlvs()).finish())
+            .field(
+                "tagged_data",
+                &f.debug_list().entries(self.get_named_tlvs()).finish(),
+            )
             .finish()
-
     }
-}
+} */
 impl MeasureWith<()> for AWDLActionFrame<'_> {
     fn measure_with(&self, _ctx: &()) -> usize {
         12 + self.tagged_data.len()

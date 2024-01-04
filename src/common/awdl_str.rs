@@ -8,7 +8,7 @@ use scroll::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// A string in the format used by AWDL.
 /// The characters are preceeded by a length byte.
-pub struct AWDLStr<'a>(&'a str);
+pub struct AWDLStr<'a>(pub &'a str);
 impl<'a> AWDLStr<'a> {
     pub const fn size_in_bytes(&'a self) -> usize {
         self.0.len() + 1

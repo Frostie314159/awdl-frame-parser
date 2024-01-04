@@ -1,19 +1,6 @@
-#![feature(
-    iter_array_chunks,
-    iter_next_chunk,
-    iter_advance_by,
-    iterator_try_collect,
-    exact_size_is_empty,
-    more_qualified_paths,
-    array_chunks,
-    doc_cfg,
-    slice_as_chunks,
-    slice_flatten,
-    iter_intersperse,
-    debug_closure_helpers
-)]
 #![no_std]
 #![forbid(unsafe_code)]
+#![feature(iter_next_chunk, slice_as_chunks)]
 
 extern crate alloc;
 
