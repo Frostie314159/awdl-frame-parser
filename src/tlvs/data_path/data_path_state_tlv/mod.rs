@@ -16,6 +16,7 @@ bitfield! {
         pub infra_bssid_channel: bool => bit!(0),
         pub infra_address: bool => bit!(1),
         pub awdl_address: bool => bit!(2),
+        pub rsdb_supported: bool => bit!(3),
         pub is_umi: bool => bit!(4),
         pub dualband_support: bool => bit!(5),
         pub airplay_sink: bool => bit!(6),
@@ -39,7 +40,12 @@ bitfield! {
         pub dynamic_sdb_active: bool => bit!(4),
         pub misc: bool => bit!(5),
         pub dfs_proxy_supported: bool => bit!(6),
-        pub high_efficiency_supported: bool => bit!(8)
+        pub high_efficiency_supported: bool => bit!(8),
+        pub is_sidekick_hub: bool => bit!(9),
+        pub fast_discovery_active: bool => bit!(10),
+        pub wifi_six_e_supported: bool => bit!(11),
+        pub ultra_low_latency_infra_supported: bool => bit!(12),
+        pub pro_mode_active: bool => bit!(13)
     }
 }
 
@@ -110,6 +116,11 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
             data_path_state_tlv.country_code =
                 Some(from.gread::<[u8; 2]>(&mut offset)?.map(|x| x as char));
             offset += 1;
+        }
+        if data_path_state_tlv.flags.channel_map {
+            data_path_state_tlv.channel = Some(DataPathChannel::from_u16(
+                from.gread_with(&mut offset, Endian::Little)?,
+            ));
         }
         Ok((data_path_state_tlv, offset))
     }

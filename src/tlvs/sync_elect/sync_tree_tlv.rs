@@ -13,10 +13,7 @@ pub struct ReadMACIterator<'a> {
 }
 impl<'a> ReadMACIterator<'a> {
     pub const fn new(bytes: &'a [u8]) -> Self {
-        Self {
-            bytes,
-            offset: 0
-        }
+        Self { bytes, offset: 0 }
     }
 }
 impl Iterator for ReadMACIterator<'_> {
@@ -59,7 +56,6 @@ impl<'a> TryFromCtx<'a> for SyncTreeTLV<ReadMACIterator<'a>> {
         Ok((
             Self {
                 tree: ReadMACIterator::new(from),
-                ..Default::default()
             },
             from.len() / 6,
         ))

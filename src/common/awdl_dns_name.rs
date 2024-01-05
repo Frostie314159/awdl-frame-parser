@@ -1,6 +1,6 @@
 use core::{
     fmt::{Display, Write},
-    iter::repeat
+    iter::repeat,
 };
 use scroll::{
     ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
@@ -99,7 +99,6 @@ impl<'a> TryFromCtx<'a> for AWDLDnsName<LabelIterator<'a>> {
             Self {
                 labels: LabelIterator::new(label_bytes),
                 domain,
-                ..Default::default()
             },
             offset,
         ))

@@ -21,7 +21,6 @@ name = "awdl_frame_parser"
 harness = false
 
 [dependencies]
-heapless = "0.7.16"
 mac-parser = { git = "https://github.com/Frostie314159/mac-parser.git" }
 macro-bits = "0.1.4"
 num-integer = { version = "0.1.45", default-features = false }

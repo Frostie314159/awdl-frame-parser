@@ -10,7 +10,7 @@ use core::{fmt::Debug, iter::repeat};
 
 use crate::{
     common::LabelIterator,
-    tlvs::{sync_elect::ReadMACIterator, AWDLTLV},
+    tlvs::{dns_sd::ReadValueIterator, sync_elect::ReadMACIterator, AWDLTLV},
 };
 
 serializable_enum! {
@@ -48,7 +48,9 @@ pub struct AWDLActionFrame<'a> {
 impl<'a> AWDLActionFrame<'a> {
     pub fn get_named_tlvs(
         &'a self,
-    ) -> impl Iterator<Item = AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>>> + Clone {
+    ) -> impl Iterator<
+        Item = AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>, ReadValueIterator<'a>>,
+    > + Clone {
         repeat(()).scan(0, |offset, _| self.tagged_data.gread(offset).ok())
     }
 }

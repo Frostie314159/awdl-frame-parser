@@ -10,7 +10,7 @@ use core::marker::PhantomData;
 use mac_parser::MACAddress;
 use macro_bits::serializable_enum;
 use scroll::{
-    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
+    ctx::{TryFromCtx, TryIntoCtx},
     Endian, Pread, Pwrite,
 };
 use tlv_rs::{raw_tlv::RawTLV, TLV};
@@ -19,7 +19,7 @@ use crate::common::{AWDLStr, LabelIterator};
 
 use self::{
     data_path::{DataPathStateTLV, HTCapabilitiesTLV, IEEE80211ContainerTLV},
-    dns_sd::{ArpaTLV, ServiceParametersTLV, ServiceResponseTLV},
+    dns_sd::{ArpaTLV, ReadValueIterator, ServiceParametersTLV, ServiceResponseTLV},
     sync_elect::{
         ChannelSequenceTLV, ElectionParametersTLV, ElectionParametersV2TLV, ReadMACIterator,
         SyncTreeTLV, SynchronizationParametersTLV,
@@ -77,17 +77,18 @@ pub type RawAWDLTLV<'a> = RawTLV<'a, u8, u16>;
 pub type TypedAWDLTLV<'a, Payload> = TLV<u8, u16, AWDLTLVType, Payload>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum AWDLTLV<'a, MACIterator, LabelIterator>
+pub enum AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
     MACIterator: IntoIterator<Item = MACAddress>,
     <MACIterator as IntoIterator>::IntoIter: Clone,
+    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     ServiceResponse(ServiceResponseTLV<'a, LabelIterator>),
     SynchronizationParameters(SynchronizationParametersTLV),
     ElectionParameters(ElectionParametersTLV),
-    ServiceParameters(ServiceParametersTLV),
+    ServiceParameters(ServiceParametersTLV<ValueIterator>),
     HTCapabilities(HTCapabilitiesTLV),
     DataPathState(DataPathStateTLV),
     Arpa(ArpaTLV<'a, LabelIterator>),
@@ -98,12 +99,14 @@ where
     ElectionParametersV2(ElectionParametersV2TLV),
     Unknown(RawAWDLTLV<'a>),
 }
-impl<'a, MACIterator, LabelIterator> AWDLTLV<'a, MACIterator, LabelIterator>
+impl<'a, MACIterator, LabelIterator, ValueIterator>
+    AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
     MACIterator: IntoIterator<Item = MACAddress>,
     <MACIterator as IntoIterator>::IntoIter: Clone,
+    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     pub const fn get_type(&self) -> AWDLTLVType {
         match self {
@@ -123,7 +126,9 @@ where
         }
     }
 }
-impl<'a> TryFromCtx<'a> for AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>> {
+impl<'a> TryFromCtx<'a>
+    for AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>, ReadValueIterator<'a>>
+{
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let (raw_tlv, len) =
@@ -167,13 +172,14 @@ impl<'a> TryFromCtx<'a> for AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>> 
         ))
     }
 }
-impl<'a, MACIterator: IntoIterator<Item = MACAddress> + MeasureWith<()>, LabelIterator> TryIntoCtx
-    for AWDLTLV<'a, MACIterator, LabelIterator>
+impl<'a, MACIterator, LabelIterator, ValueIterator> TryIntoCtx
+    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
     MACIterator: IntoIterator<Item = MACAddress> + ExactSizeIterator,
     <MACIterator as IntoIterator>::IntoIter: Clone,
+    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
