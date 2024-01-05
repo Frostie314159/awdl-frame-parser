@@ -8,7 +8,7 @@
     debug_closure_helpers
 )]
 
-/* #[cfg(test)] */
+#[cfg(test)]
 extern crate alloc;
 
 /// Structures related to AWDL action frames.
