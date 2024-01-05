@@ -81,8 +81,7 @@ pub enum AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
-    MACIterator: IntoIterator<Item = MACAddress>,
-    <MACIterator as IntoIterator>::IntoIter: Clone,
+    MACIterator: IntoIterator<Item = MACAddress> + Clone,
     ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     ServiceResponse(ServiceResponseTLV<'a, LabelIterator>),
@@ -104,8 +103,7 @@ impl<'a, MACIterator, LabelIterator, ValueIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
-    MACIterator: IntoIterator<Item = MACAddress>,
-    <MACIterator as IntoIterator>::IntoIter: Clone,
+    MACIterator: IntoIterator<Item = MACAddress> + Clone,
     ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     pub const fn get_type(&self) -> AWDLTLVType {
@@ -177,8 +175,7 @@ impl<'a, MACIterator, LabelIterator, ValueIterator> TryIntoCtx
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
-    MACIterator: IntoIterator<Item = MACAddress> + ExactSizeIterator,
-    <MACIterator as IntoIterator>::IntoIter: Clone,
+    MACIterator: IntoIterator<Item = MACAddress> + ExactSizeIterator + Clone,
     ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     type Error = scroll::Error;
