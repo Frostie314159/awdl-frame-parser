@@ -1,6 +1,6 @@
 [package]
 name = "awdl-frame-parser"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "A parser for AWDL data and action frames."
 authors = ["Frostie314159"]
@@ -11,8 +11,6 @@ repository = "https://github.com/Frostie314159/awdl-frame-parser"
 [profile.release]
 opt-level = 3
 
-[features]
-
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }
 
@@ -21,9 +19,9 @@ name = "awdl_frame_parser"
 harness = false
 
 [dependencies]
-mac-parser = { git = "https://github.com/Frostie314159/mac-parser.git" }
+mac-parser = "0.1.4"
 macro-bits = "0.1.4"
 num-integer = { version = "0.1.45", default-features = false }
-scroll = { git = "https://github.com/Frostie314159/scroll.git", branch = "fixed-array-impl", default-features = false }
-tlv-rs = { git = "https://github.com/Frostie314159/tlv-rs.git" }
+scroll = { version = "0.12.0", default-features = false }
+tlv-rs = "0.2.3"
 try_take = "0.1.0"
