@@ -16,16 +16,15 @@ serializable_enum! {
     }
 }
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Debug, Hash)]
 /// A DNS record as encoded by AWDL.
-pub enum AWDLDnsRecord<'a, I>
+pub enum AWDLDnsRecord<'a, I = ReadLabelIterator<'a>>
 where
-    I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
+    I: IntoIterator<Item = AWDLStr<'a>>,
 {
     /// Pointer
     PTR {
-        domain_name: AWDLDnsName<I>,
+        domain_name: AWDLDnsName<'a, I>,
     },
     /// Text
     TXT {
@@ -36,7 +35,7 @@ where
         priority: u16,
         weight: u16,
         port: u16,
-        target: AWDLDnsName<I>,
+        target: AWDLDnsName<'a, I>,
     },
     UnknownRecord {
         record_type: u8,
@@ -45,8 +44,7 @@ where
 }
 impl<'a, I> AWDLDnsRecord<'a, I>
 where
-    I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
+    I: IntoIterator<Item = AWDLStr<'a>>,
 {
     #[inline]
     /// Returns the [record type](AWDLDnsRecordType).
@@ -61,13 +59,13 @@ where
         }
     }
 }
+impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Copy> Copy for AWDLDnsRecord<'a, I> {}
+impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for AWDLDnsRecord<'a, I> {}
 impl<'a, LhsIterator, RhsIterator> PartialEq<AWDLDnsRecord<'a, RhsIterator>>
     for AWDLDnsRecord<'a, LhsIterator>
 where
     LhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     RhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <LhsIterator as IntoIterator>::IntoIter: Clone,
-    <RhsIterator as IntoIterator>::IntoIter: Clone,
 {
     fn eq(&self, other: &AWDLDnsRecord<'a, RhsIterator>) -> bool {
         match (self, other) {
@@ -121,7 +119,6 @@ where
 impl<'a, I> MeasureWith<()> for AWDLDnsRecord<'a, I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
 {
     fn measure_with(&self, ctx: &()) -> usize {
         (match self {
@@ -136,7 +133,7 @@ where
         }) + 1
     }
 }
-impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, ReadLabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -168,7 +165,6 @@ impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, ReadLabelIterator<'a>> {
 impl<'a, I> TryIntoCtx for AWDLDnsRecord<'a, I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
 {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {

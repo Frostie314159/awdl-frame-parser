@@ -6,7 +6,7 @@ use scroll::{
     Pread, Pwrite,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ReadMACIterator<'a> {
     pub bytes: &'a [u8],
     pub offset: usize,
@@ -33,7 +33,7 @@ impl Display for ReadMACIterator<'_> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default, Hash)]
 /// This describes the structure of the AWDL mesh.
 /// The contained mac address are in descending order,
 /// with the first one being the mesh master and the other ones being sync masters.
@@ -41,6 +41,7 @@ pub struct SyncTreeTLV<I> {
     /// The MACs.
     pub tree: I,
 }
+impl<I: Copy> Copy for SyncTreeTLV<I> {}
 impl<LhsIterator, RhsIterator> PartialEq<SyncTreeTLV<RhsIterator>> for SyncTreeTLV<LhsIterator>
 where
     LhsIterator: IntoIterator<Item = MACAddress> + Clone,

@@ -5,7 +5,7 @@ use scroll::{
     Pread, Pwrite,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 /// A string in the format used by AWDL.
 /// The characters are preceeded by a length byte.
 pub struct AWDLStr<'a>(pub &'a str);
@@ -63,10 +63,12 @@ impl<'a> From<&'a str> for AWDLStr<'a> {
 #[cfg(test)]
 #[test]
 fn test_awdl_str() {
+    use alloc::vec;
+
     let bytes = [0x06, 0x6c, 0x61, 0x6d, 0x62, 0x64, 0x61].as_slice();
     let string = bytes.pread::<AWDLStr<'_>>(0).unwrap();
     assert_eq!(string, "lambda".into());
-    let mut buf = [0x00; 7];
+    let mut buf = vec![0x00; string.measure_with(&())];
     let _ = buf.pwrite::<AWDLStr<'_>>(string, 0).unwrap();
     assert_eq!(bytes, buf);
 }

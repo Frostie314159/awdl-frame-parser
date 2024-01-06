@@ -1,7 +1,7 @@
 use macro_bits::{bit, bitfield, serializable_enum};
 
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub enum MAXAMpduLength: u8 {
         /// 8kb
         #[default]
@@ -16,7 +16,7 @@ serializable_enum! {
 }
 
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub enum MpduDensity: u8 {
         #[default]
         NoRestriction => 0,
@@ -31,7 +31,7 @@ serializable_enum! {
 }
 
 bitfield! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub struct AMpduParameters: u8 {
         pub max_a_mpdu_length: MAXAMpduLength => bit!(0,1),
         pub mpdu_density: MpduDensity => bit!(2,3,4)

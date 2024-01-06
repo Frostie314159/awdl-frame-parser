@@ -1,15 +1,12 @@
 [package]
 name = "awdl-frame-parser"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 description = "A parser for AWDL data and action frames."
 authors = ["Frostie314159"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/Frostie314159/awdl-frame-parser"
-
-[profile.release]
-opt-level = 3
 
 [dev-dependencies]
 criterion = { version = "0.4.0", features = ["html_reports"] }

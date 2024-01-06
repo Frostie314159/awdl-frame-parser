@@ -1,7 +1,7 @@
 use macro_bits::{bit, bitfield, serializable_enum};
 
 serializable_enum! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub enum SmPwSave: u8 {
         #[default]
         Static => 0,
@@ -10,7 +10,7 @@ serializable_enum! {
     }
 }
 bitfield! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     pub struct HTCapabilitiesInfo: u16 {
         pub ldpc_coding_capability: bool => bit!(0),
         pub support_channel_width: bool => bit!(1),

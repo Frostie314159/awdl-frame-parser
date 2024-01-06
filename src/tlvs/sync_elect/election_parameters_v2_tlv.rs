@@ -4,7 +4,7 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 /// Another TLV describing the election parameters of the peer.
 pub struct ElectionParametersV2TLV {
     /// MAC address of the master

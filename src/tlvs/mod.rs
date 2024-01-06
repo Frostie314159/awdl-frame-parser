@@ -80,7 +80,6 @@ pub type TypedAWDLTLV<'a, Payload> = TLV<u8, u16, AWDLTLVType, Payload>;
 pub enum AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <LabelIterator as IntoIterator>::IntoIter: Clone,
     MACIterator: IntoIterator<Item = MACAddress> + Clone,
     ValueIterator: IntoIterator<Item = u8> + Clone,
 {
@@ -296,4 +295,5 @@ where
 }
 
 /// Default [AWDLTLV] returned by reading.
-pub type DefaultAWDLTLV<'a> = AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>;
+pub type DefaultAWDLTLV<'a> =
+    AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>;

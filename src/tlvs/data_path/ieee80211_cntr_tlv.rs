@@ -6,7 +6,7 @@ use tlv_rs::raw_tlv::RawTLV;
 
 pub type IEEE80211TLV<'a> = RawTLV<'a, u8, u8>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// This TLV just encapsulates an IEEE802.11 TLV.
 ///
 /// In reality, this just contains an EHT capabilities TLV, but for future compatibility we'll just make it do this now.

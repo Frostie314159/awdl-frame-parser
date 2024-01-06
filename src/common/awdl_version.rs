@@ -3,7 +3,7 @@ use core::fmt::Display;
 use macro_bits::bitfield;
 
 bitfield! {
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
     /// A version in AWDL format.
     pub struct AWDLVersion: u8 {
         /// The major version.

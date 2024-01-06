@@ -8,7 +8,7 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct HTCapabilitiesTLV {
     pub ht_capabilities_info: HTCapabilitiesInfo,
     pub a_mpdu_parameters: AMpduParameters,

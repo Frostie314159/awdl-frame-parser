@@ -9,26 +9,25 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Debug, Hash)]
 /// This TLV contains data about services offered by the peer.
-pub struct ServiceResponseTLV<'a, I>
+pub struct ServiceResponseTLV<'a, I = ReadLabelIterator<'a>>
 where
-    I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
+    I: IntoIterator<Item = AWDLStr<'a>>,
 {
     /// The fullname of the service.
-    pub name: AWDLDnsName<I>,
+    pub name: AWDLDnsName<'a, I>,
 
     /// The DNS record contained in this response.
     pub record: AWDLDnsRecord<'a, I>,
 }
+impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Copy> Copy for ServiceResponseTLV<'a, I> {}
+impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for ServiceResponseTLV<'a, I> {}
 impl<'a, LhsIterator, RhsIterator> PartialEq<ServiceResponseTLV<'a, RhsIterator>>
     for ServiceResponseTLV<'a, LhsIterator>
 where
     LhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     RhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <LhsIterator as IntoIterator>::IntoIter: Clone,
-    <RhsIterator as IntoIterator>::IntoIter: Clone,
 {
     fn eq(&self, other: &ServiceResponseTLV<'a, RhsIterator>) -> bool {
         self.name == other.name && self.record == other.record
@@ -37,13 +36,12 @@ where
 impl<'a, I> MeasureWith<()> for ServiceResponseTLV<'a, I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
 {
     fn measure_with(&self, ctx: &()) -> usize {
         6 + self.name.measure_with(ctx) + self.record.measure_with(ctx)
     }
 }
-impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a, ReadLabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -59,7 +57,6 @@ impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a, ReadLabelIterator<'a>> {
 impl<'a, I> TryIntoCtx for ServiceResponseTLV<'a, I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    <I as IntoIterator>::IntoIter: Clone,
 {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
@@ -89,7 +86,9 @@ mod service_response_tests {
     fn test_service_response_tlv_ptr() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_ptr.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<ReadLabelIterator>>(0).unwrap();
+        let service_response_tlv = bytes
+            .pread::<ServiceResponseTLV<ReadLabelIterator>>(0)
+            .unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -116,7 +115,9 @@ mod service_response_tests {
     fn test_service_response_tlv_srv() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_srv.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<ReadLabelIterator>>(0).unwrap();
+        let service_response_tlv = bytes
+            .pread::<ServiceResponseTLV<ReadLabelIterator>>(0)
+            .unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -146,7 +147,9 @@ mod service_response_tests {
     fn test_service_response_tlv_txt() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_txt.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<ReadLabelIterator>>(0).unwrap();
+        let service_response_tlv = bytes
+            .pread::<ServiceResponseTLV<ReadLabelIterator>>(0)
+            .unwrap();
 
         assert_eq!(
             service_response_tlv,

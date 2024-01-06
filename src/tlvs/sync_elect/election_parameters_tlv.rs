@@ -4,7 +4,7 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 /// A TLV describing the election parameters of a peer.
 pub struct ElectionParametersTLV {
     /// Unknown
