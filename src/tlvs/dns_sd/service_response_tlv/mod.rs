@@ -1,6 +1,6 @@
 pub mod dns_record;
 
-use crate::common::{AWDLDnsName, AWDLStr, LabelIterator};
+use crate::common::{AWDLDnsName, AWDLStr, ReadLabelIterator};
 
 use dns_record::AWDLDnsRecord;
 
@@ -43,7 +43,7 @@ where
         6 + self.name.measure_with(ctx) + self.record.measure_with(ctx)
     }
 }
-impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a, LabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -81,7 +81,7 @@ mod service_response_tests {
     use scroll::{ctx::MeasureWith, Pread, Pwrite};
 
     use crate::{
-        common::{AWDLDnsCompression, AWDLDnsName, LabelIterator},
+        common::{AWDLDnsCompression, AWDLDnsName, ReadLabelIterator},
         tlvs::dns_sd::{dns_record::AWDLDnsRecord, ServiceResponseTLV},
     };
 
@@ -89,7 +89,7 @@ mod service_response_tests {
     fn test_service_response_tlv_ptr() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_ptr.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<LabelIterator>>(0).unwrap();
+        let service_response_tlv = bytes.pread::<ServiceResponseTLV<ReadLabelIterator>>(0).unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -116,7 +116,7 @@ mod service_response_tests {
     fn test_service_response_tlv_srv() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_srv.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<LabelIterator>>(0).unwrap();
+        let service_response_tlv = bytes.pread::<ServiceResponseTLV<ReadLabelIterator>>(0).unwrap();
 
         assert_eq!(
             service_response_tlv,
@@ -146,7 +146,7 @@ mod service_response_tests {
     fn test_service_response_tlv_txt() {
         let bytes = &include_bytes!("../../../../test_bins/service_response_tlv_txt.bin")[3..];
 
-        let service_response_tlv = bytes.pread::<ServiceResponseTLV<LabelIterator>>(0).unwrap();
+        let service_response_tlv = bytes.pread::<ServiceResponseTLV<ReadLabelIterator>>(0).unwrap();
 
         assert_eq!(
             service_response_tlv,

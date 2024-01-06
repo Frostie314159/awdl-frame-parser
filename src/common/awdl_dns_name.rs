@@ -12,27 +12,27 @@ use crate::tlvs::RawAWDLTLV;
 use super::{awdl_dns_compression::AWDLDnsCompression, awdl_str::AWDLStr};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct LabelIterator<'a> {
+pub struct ReadLabelIterator<'a> {
     bytes: &'a [u8],
     offset: usize,
 }
-impl<'a> LabelIterator<'a> {
+impl<'a> ReadLabelIterator<'a> {
     pub const fn new(bytes: &'a [u8]) -> Self {
         Self { bytes, offset: 0 }
     }
 }
-impl MeasureWith<()> for LabelIterator<'_> {
+impl MeasureWith<()> for ReadLabelIterator<'_> {
     fn measure_with(&self, _ctx: &()) -> usize {
         self.bytes.len()
     }
 }
-impl<'a> Iterator for LabelIterator<'a> {
+impl<'a> Iterator for ReadLabelIterator<'a> {
     type Item = AWDLStr<'a>;
     fn next(&mut self) -> Option<Self::Item> {
         self.bytes.gread(&mut self.offset).ok()
     }
 }
-impl ExactSizeIterator for LabelIterator<'_> {
+impl ExactSizeIterator for ReadLabelIterator<'_> {
     fn len(&self) -> usize {
         repeat(())
             .scan(0usize, |offset, _| {
@@ -88,7 +88,7 @@ where
             + 2
     }
 }
-impl<'a> TryFromCtx<'a> for AWDLDnsName<LabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for AWDLDnsName<ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -97,7 +97,7 @@ impl<'a> TryFromCtx<'a> for AWDLDnsName<LabelIterator<'a>> {
             AWDLDnsCompression::from_representation(from.gread_with(&mut offset, NETWORK)?);
         Ok((
             Self {
-                labels: LabelIterator::new(label_bytes),
+                labels: ReadLabelIterator::new(label_bytes),
                 domain,
             },
             offset,
@@ -137,7 +137,7 @@ fn test_dns_name() {
         0x04, b'a', b'w', b'd', b'l', 0x04, b'a', b'w', b'd', b'l', 0xc0, 0x0c,
     ]
     .as_slice();
-    let dns_name = bytes.pread::<AWDLDnsName<LabelIterator>>(0).unwrap();
+    let dns_name = bytes.pread::<AWDLDnsName<ReadLabelIterator>>(0).unwrap();
     assert_eq!(
         dns_name,
         AWDLDnsName {

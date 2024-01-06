@@ -9,7 +9,7 @@ use core::fmt::Debug;
 use core::{fmt::Debug, iter::repeat};
 
 use crate::{
-    common::LabelIterator,
+    common::ReadLabelIterator,
     tlvs::{dns_sd::ReadValueIterator, sync_elect::ReadMACIterator, AWDLTLV},
 };
 
@@ -49,7 +49,7 @@ impl<'a> AWDLActionFrame<'a> {
     pub fn get_named_tlvs(
         &'a self,
     ) -> impl Iterator<
-        Item = AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>, ReadValueIterator<'a>>,
+        Item = AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>,
     > + Clone {
         repeat(()).scan(0, |offset, _| self.tagged_data.gread(offset).ok())
     }

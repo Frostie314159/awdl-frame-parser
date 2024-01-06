@@ -15,7 +15,7 @@ use scroll::{
 };
 use tlv_rs::{raw_tlv::RawTLV, TLV};
 
-use crate::common::{AWDLStr, LabelIterator};
+use crate::common::{AWDLStr, ReadLabelIterator};
 
 use self::{
     data_path::{DataPathStateTLV, HTCapabilitiesTLV, IEEE80211ContainerTLV},
@@ -125,7 +125,7 @@ where
     }
 }
 impl<'a> TryFromCtx<'a>
-    for AWDLTLV<'a, ReadMACIterator<'a>, LabelIterator<'a>, ReadValueIterator<'a>>
+    for AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>
 {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
@@ -294,3 +294,6 @@ where
         }
     }
 }
+
+/// Default [AWDLTLV] returned by reading.
+pub type DefaultAWDLTLV<'a> = AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>;

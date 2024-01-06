@@ -3,7 +3,7 @@ use scroll::{
     Pread, Pwrite,
 };
 
-use crate::common::{AWDLDnsName, AWDLStr, LabelIterator};
+use crate::common::{AWDLDnsName, AWDLStr, ReadLabelIterator};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 /// A TLV containing the hostname of the peer. Used for reverse DNS.
@@ -24,7 +24,7 @@ where
         self.arpa.measure_with(ctx) + 1
     }
 }
-impl<'a> TryFromCtx<'a> for ArpaTLV<'a, LabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for ArpaTLV<'a, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -57,7 +57,7 @@ fn test_arpa_tlv() {
 
     let bytes = &include_bytes!("../../../test_bins/arpa_tlv.bin")[3..];
 
-    let arpa_tlv = bytes.pread::<ArpaTLV<LabelIterator>>(0).unwrap();
+    let arpa_tlv = bytes.pread::<ArpaTLV<ReadLabelIterator>>(0).unwrap();
     assert_eq!(arpa_tlv.arpa.domain, AWDLDnsCompression::Local);
     assert_eq!(
         arpa_tlv.arpa.labels.collect::<Vec<_>>(),
@@ -65,7 +65,7 @@ fn test_arpa_tlv() {
     );
     let mut buf = vec![0x00; arpa_tlv.measure_with(&())];
     buf.as_mut_slice()
-        .pwrite::<ArpaTLV<LabelIterator>>(arpa_tlv, 0)
+        .pwrite::<ArpaTLV<ReadLabelIterator>>(arpa_tlv, 0)
         .unwrap();
     assert_eq!(buf, bytes);
 }

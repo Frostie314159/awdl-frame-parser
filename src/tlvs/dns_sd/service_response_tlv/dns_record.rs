@@ -4,7 +4,7 @@ use scroll::{
     Pread, Pwrite, NETWORK,
 };
 
-use crate::common::{AWDLDnsName, AWDLStr, LabelIterator};
+use crate::common::{AWDLDnsName, AWDLStr, ReadLabelIterator};
 
 serializable_enum! {
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -136,7 +136,7 @@ where
         }) + 1
     }
 }
-impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, LabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -148,7 +148,7 @@ impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, LabelIterator<'a>> {
                     domain_name: from.gread(&mut offset)?,
                 },
                 AWDLDnsRecordType::TXT => Self::TXT {
-                    txt_record: LabelIterator::new(&from[offset..]),
+                    txt_record: ReadLabelIterator::new(&from[offset..]),
                 },
                 AWDLDnsRecordType::SRV => Self::SRV {
                     priority: from.gread_with(&mut offset, NETWORK)?,
