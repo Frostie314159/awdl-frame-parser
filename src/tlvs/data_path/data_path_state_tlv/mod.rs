@@ -122,20 +122,20 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
             .then(|| {
                 let country_code = from.gread::<[u8; 2]>(&mut offset)?.map(|x| x as char);
                 offset += 1;
-                Ok(country_code)
+                Ok::<[char; 2], scroll::Error>(country_code)
             })
             .transpose()?;
         let channel_map = flags
             .channel_map_present
             .then(|| {
-                Ok(DataPathChannel::from_u16(
+                Ok::<DataPathChannel, scroll::Error>(DataPathChannel::from_u16(
                     from.gread_with(&mut offset, Endian::Little)?,
                 ))
             })
             .transpose()?;
         let infra_bssid_channel = flags
             .infra_bssid_channel_present
-            .then(|| Ok((from.gread(&mut offset)?, from.gread(&mut offset)?)))
+            .then(|| Ok::<(MACAddress, u16), scroll::Error>((from.gread(&mut offset)?, from.gread(&mut offset)?)))
             .transpose()?;
         let infra_address = flags
             .infra_address_present
@@ -179,7 +179,7 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
         let (extended_flags, log_trigger_id, rlfc, stats) = flags
             .extended_flags
             .then(|| {
-                Ok({
+                Ok::<(Option<DataPathExtendedFlags>, Option<u16>, Option<u32>, Option<DataPathStats>), scroll::Error>({
                     let extended_flags = DataPathExtendedFlags::from_representation(
                         from.gread_with(&mut offset, Endian::Little)?,
                     );
