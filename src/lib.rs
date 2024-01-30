@@ -15,6 +15,6 @@ extern crate alloc;
 pub mod action_frame;
 /// Structures, which are shared between multiple TLVs and frame types.
 pub mod common;
-//pub mod data_frame;
+pub mod data_frame;
 /// Every TLV currently understood.
 pub mod tlvs;

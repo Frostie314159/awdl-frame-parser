@@ -5,12 +5,12 @@ pub mod dns_sd;
 /// TLVs about the synchronization and election state of the peer.
 pub mod sync_elect;
 pub mod version;
-use core::marker::PhantomData;
+use core::{fmt::Debug, marker::PhantomData};
 
 use mac_parser::MACAddress;
 use macro_bits::serializable_enum;
 use scroll::{
-    ctx::{TryFromCtx, TryIntoCtx},
+    ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
     Endian, Pread, Pwrite,
 };
 use tlv_rs::{raw_tlv::RawTLV, TLV};
@@ -76,26 +76,113 @@ serializable_enum! {
 pub type RawAWDLTLV<'a> = RawTLV<'a, u8, u16>;
 pub type TypedAWDLTLV<'a, Payload> = TLV<u8, u16, AWDLTLVType, Payload>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
-where
-    LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    MACIterator: IntoIterator<Item = MACAddress> + Clone,
-    ValueIterator: IntoIterator<Item = u8> + Clone,
-{
+#[derive(Clone)]
+pub enum AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator> {
     ServiceResponse(ServiceResponseTLV<'a, LabelIterator>),
     SynchronizationParameters(SynchronizationParametersTLV),
     ElectionParameters(ElectionParametersTLV),
     ServiceParameters(ServiceParametersTLV<ValueIterator>),
     HTCapabilities(HTCapabilitiesTLV),
     DataPathState(DataPathStateTLV),
-    Arpa(ArpaTLV<'a, LabelIterator>),
+    Arpa(ArpaTLV<LabelIterator>),
     IEEE80211Container(IEEE80211ContainerTLV<'a>),
     ChannelSequence(ChannelSequenceTLV),
     SynchronizationTree(SyncTreeTLV<MACIterator>),
     Version(VersionTLV),
     ElectionParametersV2(ElectionParametersV2TLV),
     Unknown(RawAWDLTLV<'a>),
+}
+macro_rules! comparisons {
+    ($self:expr, $other:expr, $($path:ident),*) => {
+        match ($self, $other) {
+            $(
+                (Self::$path(lhs), AWDLTLV::<'a, RhsMACIterator, RhsLabelIterator, RhsValueIterator>::$path(rhs)) => lhs == rhs,
+            )*
+            _ => false,
+        }
+    };
+}
+impl<
+        'a,
+        LhsMACIterator,
+        RhsMACIterator,
+        LhsLabelIterator,
+        RhsLabelIterator,
+        LhsValueIterator,
+        RhsValueIterator,
+    > PartialEq<AWDLTLV<'a, RhsMACIterator, RhsLabelIterator, RhsValueIterator>>
+    for AWDLTLV<'a, LhsMACIterator, LhsLabelIterator, LhsValueIterator>
+where
+    LhsMACIterator: IntoIterator<Item = MACAddress> + Clone,
+    RhsMACIterator: IntoIterator<Item = MACAddress> + Clone,
+    LhsLabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    RhsLabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    LhsValueIterator: IntoIterator<Item = u8> + Clone,
+    RhsValueIterator: IntoIterator<Item = u8> + Clone,
+{
+    fn eq(&self, other: &AWDLTLV<'a, RhsMACIterator, RhsLabelIterator, RhsValueIterator>) -> bool {
+        comparisons!(
+            self,
+            other,
+            ServiceResponse,
+            SynchronizationParameters,
+            ElectionParameters,
+            ServiceParameters,
+            HTCapabilities,
+            DataPathState,
+            Arpa,
+            IEEE80211Container,
+            ChannelSequence,
+            SynchronizationTree,
+            Version,
+            ElectionParametersV2,
+            Unknown
+        )
+    }
+}
+impl<'a, MACIterator, LabelIterator, ValueIterator> Eq
+    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+where
+    MACIterator: IntoIterator<Item = MACAddress> + Clone,
+    LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
+    ValueIterator: IntoIterator<Item = u8> + Clone,
+{
+}
+macro_rules! debug_impls {
+    ($self:expr, $f:expr, $($path:ident),*) => {
+        match $self {
+            $(
+                Self::$path(inner) => inner.fmt($f),
+            )*
+        }
+    };
+}
+impl<'a, MACIterator, LabelIterator, ValueIterator> Debug
+    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+where
+    MACIterator: IntoIterator<Item = MACAddress> + Clone + Debug,
+    LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone + Debug,
+    ValueIterator: IntoIterator<Item = u8> + Clone,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        debug_impls!(
+            self,
+            f,
+            ServiceResponse,
+            SynchronizationParameters,
+            ElectionParameters,
+            ServiceParameters,
+            HTCapabilities,
+            DataPathState,
+            Arpa,
+            IEEE80211Container,
+            ChannelSequence,
+            SynchronizationTree,
+            Version,
+            ElectionParametersV2,
+            Unknown
+        )
+    }
 }
 impl<'a, MACIterator, LabelIterator, ValueIterator>
     AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
@@ -123,6 +210,61 @@ where
         }
     }
 }
+macro_rules! measure_with_impls {
+    ($self:expr, $ctx:expr, $($path:ident),*) => {
+        match $self {
+            $(
+                Self::$path(inner) => inner.measure_with($ctx),
+            )*
+            Self::Unknown(raw_tlv) => raw_tlv.slice.len()
+        }
+    };
+}
+impl<'a, MACIterator, LabelIterator, ValueIterator> MeasureWith<()>
+    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+where
+    MACIterator: ExactSizeIterator,
+    LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone + Debug,
+    ValueIterator: IntoIterator<Item = u8> + Clone,
+{
+    fn measure_with(&self, ctx: &()) -> usize {
+        3 + measure_with_impls!(
+            self,
+            ctx,
+            ServiceResponse,
+            SynchronizationParameters,
+            ElectionParameters,
+            ServiceParameters,
+            HTCapabilities,
+            DataPathState,
+            Arpa,
+            IEEE80211Container,
+            ChannelSequence,
+            SynchronizationTree,
+            Version,
+            ElectionParametersV2
+        )
+    }
+}
+macro_rules! read_impls {
+    ($self:expr, $raw_tlv:expr, $($path:ident),*) => {
+        match AWDLTLVType::from_representation($raw_tlv.tlv_type) {
+            $(
+                AWDLTLVType::$path => Self::$path($raw_tlv.slice.pread(0)?),
+            )*
+            AWDLTLVType::Unknown(tlv_type) => Self::Unknown(RawTLV {
+                tlv_type,
+                slice: $raw_tlv.slice,
+                _phantom: PhantomData,
+            }),
+            AWDLTLVType::Null => Self::Unknown(RawTLV {
+                tlv_type: 0,
+                slice: $raw_tlv.slice,
+                _phantom: PhantomData,
+            }),
+        }
+    };
+}
 impl<'a> TryFromCtx<'a>
     for AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>
 {
@@ -131,43 +273,43 @@ impl<'a> TryFromCtx<'a>
         let (raw_tlv, len) =
             <RawAWDLTLV<'a> as TryFromCtx<'a, Endian>>::try_from_ctx(from, Endian::Little)?;
         Ok((
-            match AWDLTLVType::from_representation(raw_tlv.tlv_type) {
-                AWDLTLVType::ServiceResponse => Self::ServiceResponse(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::SynchronizationParameters => {
-                    Self::SynchronizationParameters(raw_tlv.slice.pread(0)?)
-                }
-                AWDLTLVType::ElectionParameters => {
-                    Self::ElectionParameters(raw_tlv.slice.pread(0)?)
-                }
-                AWDLTLVType::ServiceParameters => Self::ServiceParameters(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::HTCapabilities => Self::HTCapabilities(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::DataPathState => Self::DataPathState(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::Arpa => Self::Arpa(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::IEEE80211Container => {
-                    Self::IEEE80211Container(raw_tlv.slice.pread(0)?)
-                }
-                AWDLTLVType::ChannelSequence => Self::ChannelSequence(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::SynchronizationTree => {
-                    Self::SynchronizationTree(raw_tlv.slice.pread(0)?)
-                }
-                AWDLTLVType::Version => Self::Version(raw_tlv.slice.pread(0)?),
-                AWDLTLVType::ElectionParametersV2 => {
-                    Self::ElectionParametersV2(raw_tlv.slice.pread(0)?)
-                }
-                AWDLTLVType::Unknown(tlv_type) => Self::Unknown(RawTLV {
-                    tlv_type,
-                    slice: raw_tlv.slice,
-                    _phantom: PhantomData,
-                }),
-                AWDLTLVType::Null => Self::Unknown(RawTLV {
-                    tlv_type: 0,
-                    slice: raw_tlv.slice,
-                    _phantom: PhantomData,
-                }),
-            },
+            read_impls!(
+                self,
+                raw_tlv,
+                ServiceResponse,
+                SynchronizationParameters,
+                ElectionParameters,
+                ServiceParameters,
+                HTCapabilities,
+                DataPathState,
+                Arpa,
+                IEEE80211Container,
+                ChannelSequence,
+                SynchronizationTree,
+                Version,
+                ElectionParametersV2
+            ),
             len,
         ))
     }
+}
+macro_rules! write_impls {
+    ($self:expr, $buf:expr, $tlv_type:expr, $($path:ident),*) => {
+        match $self {
+            $(
+                Self::$path(payload) => $buf.pwrite_with(
+                    TypedAWDLTLV {
+                        tlv_type: $tlv_type,
+                        payload,
+                        _phantom: PhantomData,
+                    },
+                    0,
+                    Endian::Little,
+                ),
+            )*
+            Self::Unknown(tlv) => $buf.pwrite(tlv, 0)
+        }
+    };
 }
 impl<'a, MACIterator, LabelIterator, ValueIterator> TryIntoCtx
     for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
@@ -180,120 +322,53 @@ where
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
         let tlv_type = self.get_type();
-        match self {
-            AWDLTLV::ServiceResponse(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::SynchronizationParameters(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::ElectionParameters(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::ServiceParameters(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::HTCapabilities(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::DataPathState(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::Arpa(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::IEEE80211Container(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::ChannelSequence(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::SynchronizationTree(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::Version(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::ElectionParametersV2(payload) => buf.pwrite_with(
-                TypedAWDLTLV {
-                    tlv_type,
-                    payload,
-                    _phantom: PhantomData,
-                },
-                0,
-                Endian::Little,
-            ),
-            AWDLTLV::Unknown(tlv) => buf.pwrite(tlv, 0),
-        }
+        write_impls!(
+            self,
+            buf,
+            tlv_type,
+            ServiceResponse,
+            SynchronizationParameters,
+            ElectionParameters,
+            ServiceParameters,
+            HTCapabilities,
+            DataPathState,
+            Arpa,
+            IEEE80211Container,
+            ChannelSequence,
+            SynchronizationTree,
+            Version,
+            ElectionParametersV2
+        )
     }
 }
 
 /// Default [AWDLTLV] returned by reading.
 pub type DefaultAWDLTLV<'a> =
     AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TLVReadIterator<'a> {
+    bytes: Option<&'a [u8]>,
+}
+impl<'a> TLVReadIterator<'a> {
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes: Some(bytes) }
+    }
+}
+impl<'a> Iterator for TLVReadIterator<'a> {
+    type Item = DefaultAWDLTLV<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut offset = 0;
+
+        let tlv = match self.bytes?.gread(&mut offset).ok() {
+            Some(tlv) => tlv,
+            None => {
+                self.bytes = None;
+                return None;
+            }
+        };
+        self.bytes = self.bytes.map(|bytes| &bytes[offset..]);
+
+        Some(tlv)
+    }
+}

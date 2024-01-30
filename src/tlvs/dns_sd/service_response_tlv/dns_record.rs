@@ -16,15 +16,12 @@ serializable_enum! {
     }
 }
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Copy, Debug, Hash)]
 /// A DNS record as encoded by AWDL.
-pub enum AWDLDnsRecord<'a, I = ReadLabelIterator<'a>>
-where
-    I: IntoIterator<Item = AWDLStr<'a>>,
-{
+pub enum AWDLDnsRecord<'a, I> {
     /// Pointer
     PTR {
-        domain_name: AWDLDnsName<'a, I>,
+        domain_name: AWDLDnsName<I>,
     },
     /// Text
     TXT {
@@ -35,7 +32,7 @@ where
         priority: u16,
         weight: u16,
         port: u16,
-        target: AWDLDnsName<'a, I>,
+        target: AWDLDnsName<I>,
     },
     UnknownRecord {
         record_type: u8,
@@ -59,7 +56,6 @@ where
         }
     }
 }
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Copy> Copy for AWDLDnsRecord<'a, I> {}
 impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for AWDLDnsRecord<'a, I> {}
 impl<'a, LhsIterator, RhsIterator> PartialEq<AWDLDnsRecord<'a, RhsIterator>>
     for AWDLDnsRecord<'a, LhsIterator>
@@ -133,7 +129,7 @@ where
         }) + 1
     }
 }
-impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a> {
+impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;

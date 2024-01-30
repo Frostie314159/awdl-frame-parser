@@ -6,10 +6,10 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-pub type ReadValueIterator<'a> = impl IntoIterator<Item = u8> + Clone + 'a;
+pub type ReadValueIterator<'a> = impl IntoIterator<Item = u8> + Clone + Debug + 'a;
 
 /// We don't know what these values mean, but we do know how to decode/encode them.
-#[derive(Clone)]
+#[derive(Clone, Copy, Hash)]
 pub struct ServiceParametersTLV<I> {
     /// An increment causes a DNS flush at the peer.
     pub sui: u16,
@@ -116,6 +116,10 @@ where
         Ok(offset)
     }
 }
+
+/// The service parameters returned by reading.
+pub type DefaultServiceParametersTLV<'a> = ServiceParametersTLV<ReadValueIterator<'a>>;
+
 #[cfg(test)]
 #[test]
 fn test_service_parameters_tlv() {

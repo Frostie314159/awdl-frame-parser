@@ -1,6 +1,6 @@
 [package]
 name = "awdl-frame-parser"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 description = "A parser for AWDL data and action frames."
 authors = ["Frostie314159"]
@@ -16,6 +16,7 @@ name = "awdl_frame_parser"
 harness = false
 
 [dependencies]
+ether-type = "0.1.2"
 mac-parser = "0.1.4"
 macro-bits = "0.1.4"
 num-integer = { version = "0.1.45", default-features = false }

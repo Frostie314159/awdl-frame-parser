@@ -9,19 +9,15 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Copy, Debug, Hash)]
 /// This TLV contains data about services offered by the peer.
-pub struct ServiceResponseTLV<'a, I = ReadLabelIterator<'a>>
-where
-    I: IntoIterator<Item = AWDLStr<'a>>,
-{
+pub struct ServiceResponseTLV<'a, I> {
     /// The fullname of the service.
-    pub name: AWDLDnsName<'a, I>,
+    pub name: AWDLDnsName<I>,
 
     /// The DNS record contained in this response.
     pub record: AWDLDnsRecord<'a, I>,
 }
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Copy> Copy for ServiceResponseTLV<'a, I> {}
 impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for ServiceResponseTLV<'a, I> {}
 impl<'a, LhsIterator, RhsIterator> PartialEq<ServiceResponseTLV<'a, RhsIterator>>
     for ServiceResponseTLV<'a, LhsIterator>
@@ -41,7 +37,7 @@ where
         6 + self.name.measure_with(ctx) + self.record.measure_with(ctx)
     }
 }
-impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a> {
+impl<'a> TryFromCtx<'a> for ServiceResponseTLV<'a, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -71,7 +67,10 @@ where
         Ok(offset)
     }
 }
-//impl_tlv_conversion!(false, ServiceResponseTLV, TLVType::ServiceResponse, 9);
+
+/// The default service response tlv returned by reading.
+pub type DefaultServiceResponseTLV<'a> = ServiceResponseTLV<'a, ReadLabelIterator<'a>>;
+
 #[cfg(test)]
 mod service_response_tests {
     use alloc::vec;

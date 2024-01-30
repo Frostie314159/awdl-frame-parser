@@ -54,7 +54,7 @@ impl<'a> TryFromCtx<'a> for SynchronizationParametersTLV {
         let max_multicast_ext_count = from.gread_with(&mut offset, Endian::Little)?;
         let max_unicast_ext_count = from.gread_with(&mut offset, Endian::Little)?;
         let max_af_ext_count = from.gread_with(&mut offset, Endian::Little)?;
-        let master_address = MACAddress::new(from.gread(&mut offset)?);
+        let master_address = from.gread(&mut offset)?;
         let presence_mode = from.gread_with(&mut offset, Endian::Little)?;
         offset += 1;
         let aw_seq_number = from.gread_with(&mut offset, Endian::Little)?;
@@ -105,12 +105,14 @@ impl TryIntoCtx for SynchronizationParametersTLV {
         buf.gwrite_with(self.max_multicast_ext_count, &mut offset, Endian::Little)?;
         buf.gwrite_with(self.max_unicast_ext_count, &mut offset, Endian::Little)?;
         buf.gwrite_with(self.max_af_ext_count, &mut offset, Endian::Little)?;
-        buf.gwrite(self.master_address.as_slice(), &mut offset)?;
+        buf.gwrite(self.master_address, &mut offset)?;
         buf.gwrite_with(self.presence_mode, &mut offset, Endian::Little)?;
         offset += 1;
         buf.gwrite_with(self.aw_seq_number, &mut offset, Endian::Little)?;
         buf.gwrite_with(self.ap_beacon_alignment_delta, &mut offset, Endian::Little)?;
         buf.gwrite(self.channel_sequence, &mut offset)?;
+
+        offset -= 1;
 
         Ok(offset)
     }

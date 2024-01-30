@@ -42,32 +42,27 @@ impl ExactSizeIterator for ReadLabelIterator<'_> {
     }
 }
 
-#[derive(Clone, Debug, Default, Hash)]
+#[derive(Clone, Copy, Debug, Default, Hash)]
 /// A hostname combined with the [domain](AWDLDnsCompression).
-pub struct AWDLDnsName<'a, I = ReadLabelIterator<'a>>
-where
-    I: IntoIterator<Item = AWDLStr<'a>>,
-{
+pub struct AWDLDnsName<I> {
     /// The labels of the peer.
     pub labels: I,
 
     /// The domain in [compressed form](AWDLDnsCompression).
     pub domain: AWDLDnsCompression,
 }
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Copy> Copy for AWDLDnsName<'a, I> {}
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for AWDLDnsName<'a, I> {}
-impl<'a, LhsIterator, RhsIterator> PartialEq<AWDLDnsName<'a, RhsIterator>>
-    for AWDLDnsName<'a, LhsIterator>
+impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for AWDLDnsName<I> {}
+impl<'a, LhsIterator, RhsIterator> PartialEq<AWDLDnsName<RhsIterator>> for AWDLDnsName<LhsIterator>
 where
     LhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     RhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
 {
-    fn eq(&self, other: &AWDLDnsName<'a, RhsIterator>) -> bool {
+    fn eq(&self, other: &AWDLDnsName<RhsIterator>) -> bool {
         self.labels.clone().into_iter().eq(other.labels.clone())
     }
 }
 
-impl<'a, I> MeasureWith<()> for AWDLDnsName<'a, I>
+impl<'a, I> MeasureWith<()> for AWDLDnsName<I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
 {
@@ -80,7 +75,7 @@ where
             + 2
     }
 }
-impl<'a> TryFromCtx<'a> for AWDLDnsName<'a> {
+impl<'a> TryFromCtx<'a> for AWDLDnsName<ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -96,7 +91,10 @@ impl<'a> TryFromCtx<'a> for AWDLDnsName<'a> {
         ))
     }
 }
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>>> TryIntoCtx for AWDLDnsName<'a, I> {
+impl<'a, I> TryIntoCtx for AWDLDnsName<I>
+where
+    I: IntoIterator<Item = AWDLStr<'a>>,
+{
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
         let mut offset = 0;
@@ -108,7 +106,7 @@ impl<'a, I: IntoIterator<Item = AWDLStr<'a>>> TryIntoCtx for AWDLDnsName<'a, I> 
         Ok(offset)
     }
 }
-impl<'a, I> Display for AWDLDnsName<'a, I>
+impl<'a, I> Display for AWDLDnsName<I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
 {
@@ -120,6 +118,8 @@ where
         f.write_str(self.domain.to_static_string())
     }
 }
+/// The default awdl dns name returned by reading.
+pub type DefaultAWDLDnsName<'a> = AWDLDnsName<ReadLabelIterator<'a>>;
 #[cfg(test)]
 #[test]
 fn test_dns_name() {
@@ -128,7 +128,7 @@ fn test_dns_name() {
         0x04, b'a', b'w', b'd', b'l', 0x04, b'a', b'w', b'd', b'l', 0xc0, 0x0c,
     ]
     .as_slice();
-    let dns_name = bytes.pread::<AWDLDnsName>(0).unwrap();
+    let dns_name = bytes.pread::<DefaultAWDLDnsName>(0).unwrap();
     assert_eq!(
         dns_name,
         AWDLDnsName {

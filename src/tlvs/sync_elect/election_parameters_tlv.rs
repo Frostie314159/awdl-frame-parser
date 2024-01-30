@@ -53,6 +53,8 @@ impl<'a> TryFromCtx<'a> for ElectionParametersTLV {
         let master_metric = from.gread_with(&mut offset, Endian::Little)?;
         let self_metric = from.gread_with(&mut offset, Endian::Little)?;
 
+        offset += 2;
+
         Ok((
             Self {
                 flags,
@@ -77,6 +79,8 @@ impl TryIntoCtx for ElectionParametersTLV {
         buf.gwrite(self.master_address.as_slice(), &mut offset)?;
         buf.gwrite_with(self.master_metric, &mut offset, Endian::Little)?;
         buf.gwrite_with(self.self_metric, &mut offset, Endian::Little)?;
+
+        offset += 2;
 
         Ok(offset)
     }

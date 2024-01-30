@@ -8,8 +8,8 @@ use scroll::{
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ReadMACIterator<'a> {
-    pub bytes: &'a [u8],
-    pub offset: usize,
+    bytes: &'a [u8],
+    offset: usize,
 }
 impl<'a> ReadMACIterator<'a> {
     pub const fn new(bytes: &'a [u8]) -> Self {
@@ -33,7 +33,7 @@ impl Display for ReadMACIterator<'_> {
     }
 }
 
-#[derive(Clone, Debug, Default, Hash)]
+#[derive(Clone, Copy, Debug, Default, Hash)]
 /// This describes the structure of the AWDL mesh.
 /// The contained mac address are in descending order,
 /// with the first one being the mesh master and the other ones being sync masters.
@@ -41,7 +41,6 @@ pub struct SyncTreeTLV<I> {
     /// The MACs.
     pub tree: I,
 }
-impl<I: Copy> Copy for SyncTreeTLV<I> {}
 impl<LhsIterator, RhsIterator> PartialEq<SyncTreeTLV<RhsIterator>> for SyncTreeTLV<LhsIterator>
 where
     LhsIterator: IntoIterator<Item = MACAddress> + Clone,
@@ -54,7 +53,7 @@ where
 impl<I: IntoIterator<Item = MACAddress> + Clone> Eq for SyncTreeTLV<I> {}
 impl<I> MeasureWith<()> for SyncTreeTLV<I>
 where
-    I: IntoIterator<Item = MACAddress> + ExactSizeIterator,
+    I: ExactSizeIterator,
 {
     fn measure_with(&self, _ctx: &()) -> usize {
         self.tree.len() * 6
@@ -84,6 +83,9 @@ where
         Ok(offset)
     }
 }
+
+/// The sync tree returned by reading.
+pub type DefaultSyncTreeTLV<'a> = SyncTreeTLV<ReadMACIterator<'a>>;
 
 #[cfg(test)]
 #[test]

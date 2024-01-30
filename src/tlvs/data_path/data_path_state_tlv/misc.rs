@@ -1,4 +1,8 @@
 use macro_bits::{bit, bitfield, check_bit};
+use scroll::{
+    ctx::{TryFromCtx, TryIntoCtx},
+    Endian, Pread, Pwrite,
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct DataPathStats {
@@ -6,27 +10,28 @@ pub struct DataPathStats {
     pub aw_seq_counter: u32,
     pub pay_update_coutner: u32,
 }
-#[cfg(feature = "read")]
-impl ReadFixed<12> for DataPathStats {
-    fn from_bytes(data: &[u8; 12]) -> Result<Self, ParserError> {
-        let mut data = data.iter().copied();
-        Ok(DataPathStats {
-            msec_since_activation: u32::from_le_bytes(data.next_chunk().unwrap()),
-            aw_seq_counter: u32::from_le_bytes(data.next_chunk().unwrap()),
-            pay_update_coutner: u32::from_le_bytes(data.next_chunk().unwrap()),
-        })
+impl TryFromCtx<'_> for DataPathStats {
+    type Error = scroll::Error;
+    fn try_from_ctx(from: &'_ [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        Ok((
+            Self {
+                msec_since_activation: from.gread_with(&mut offset, Endian::Little)?,
+                aw_seq_counter: from.gread_with(&mut offset, Endian::Little)?,
+                pay_update_coutner: from.gread_with(&mut offset, Endian::Little)?,
+            },
+            offset,
+        ))
     }
 }
-#[cfg(feature = "write")]
-impl WriteFixed<12> for DataPathStats {
-    fn to_bytes(&self) -> [u8; 12] {
-        self.msec_since_activation
-            .to_le_bytes()
-            .into_iter()
-            .chain(self.aw_seq_counter.to_le_bytes())
-            .chain(self.pay_update_coutner.to_le_bytes())
-            .next_chunk()
-            .unwrap()
+impl TryIntoCtx for DataPathStats {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        buf.gwrite_with(self.msec_since_activation, &mut offset, Endian::Little)?;
+        buf.gwrite_with(self.aw_seq_counter, &mut offset, Endian::Little)?;
+        buf.gwrite_with(self.pay_update_coutner, &mut offset, Endian::Little)?;
+        Ok(offset)
     }
 }
 bitfield! {
@@ -63,6 +68,7 @@ bitfield! {
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     pub struct UnicastOptions: u32 {
         pub start_airplay: bool => bit!(1),
+        pub cache_request: bool => bit!(3),
         pub jumpstart_dfs_proxy: bool => bit!(5),
         pub airplay_on_dfs_channel: bool => bit!(6),
         pub start_sidecar: bool => bit!(9),
@@ -71,10 +77,20 @@ bitfield! {
         pub stop_sidecar: bool => bit!(12),
         pub start_multi_peer_steering: bool => bit!(13),
         pub start_real_time_mode: bool => bit!(14),
+        pub stop_real_time_mode: bool => bit!(15),
         pub start_airplay_recovery: bool => bit!(16),
         pub start_ht_mode: bool => bit!(17),
         pub stop_ht_mode: bool => bit!(18),
         pub stop_airplay: bool => bit!(19),
-        pub failed_multi_peer_steering: bool => bit!(20)
+        pub failed_multi_peer_steering: bool => bit!(20),
+        pub unknown: u8 => bit!(21, 22, 23),
+        pub start_rtg_ensemble: bool => bit!(24),
+        pub stop_rtg_ensemble: bool => bit!(25),
+        pub start_airplay_in_rtg_mode: bool => bit!(26),
+        pub stop_airplay_in_rtg_mode: bool => bit!(27),
+        pub start_sidecar_in_rtg_mode: bool => bit!(28),
+        pub stop_sidecar_in_rtg_mode: bool => bit!(29),
+        pub start_remote_camera: bool => bit!(30),
+        pub stop_remote_camera: bool => bit!(31)
     }
 }

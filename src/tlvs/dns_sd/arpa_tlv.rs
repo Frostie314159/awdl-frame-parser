@@ -5,27 +5,23 @@ use scroll::{
 
 use crate::common::{AWDLDnsName, AWDLStr, ReadLabelIterator};
 
-#[derive(Clone, Debug, Default, Hash)]
+#[derive(Clone, Copy, Debug, Default, Hash)]
 /// A TLV containing the hostname of the peer. Used for reverse DNS.
-pub struct ArpaTLV<'a, I = ReadLabelIterator<'a>>
-where
-    I: IntoIterator<Item = AWDLStr<'a>>,
-{
+pub struct ArpaTLV<I> {
     /// The actual arpa data.
-    pub arpa: AWDLDnsName<'a, I>,
+    pub arpa: AWDLDnsName<I>,
 }
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Copy> Copy for ArpaTLV<'a, I> {}
-impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for ArpaTLV<'a, I> {}
-impl<'a, LhsIterator, RhsIterator> PartialEq<ArpaTLV<'a, RhsIterator>> for ArpaTLV<'a, LhsIterator>
+impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for ArpaTLV<I> {}
+impl<'a, LhsIterator, RhsIterator> PartialEq<ArpaTLV<RhsIterator>> for ArpaTLV<LhsIterator>
 where
     LhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     RhsIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
 {
-    fn eq(&self, other: &ArpaTLV<'a, RhsIterator>) -> bool {
-        self.arpa == other.arpa && self.arpa == other.arpa
+    fn eq(&self, other: &ArpaTLV<RhsIterator>) -> bool {
+        self.arpa == other.arpa
     }
 }
-impl<'a, I> MeasureWith<()> for ArpaTLV<'a, I>
+impl<'a, I> MeasureWith<()> for ArpaTLV<I>
 where
     I: IntoIterator<Item = AWDLStr<'a>> + Clone,
 {
@@ -33,7 +29,7 @@ where
         self.arpa.measure_with(ctx) + 1
     }
 }
-impl<'a> TryFromCtx<'a> for ArpaTLV<'a, ReadLabelIterator<'a>> {
+impl<'a> TryFromCtx<'a> for ArpaTLV<ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -42,7 +38,7 @@ impl<'a> TryFromCtx<'a> for ArpaTLV<'a, ReadLabelIterator<'a>> {
         Ok((Self { arpa }, offset))
     }
 }
-impl<'a, I> TryIntoCtx for ArpaTLV<'a, I>
+impl<'a, I> TryIntoCtx for ArpaTLV<I>
 where
     I: IntoIterator<Item = AWDLStr<'a>>,
 {
@@ -55,7 +51,8 @@ where
         Ok(offset)
     }
 }
-//impl_tlv_conversion!(false, ArpaTLV, TLVType::Arpa, 3);
+/// The default arpa tlv returned by reading.
+pub type DefaultArpaTLV<'a> = ArpaTLV<ReadLabelIterator<'a>>;
 #[cfg(test)]
 #[test]
 fn test_arpa_tlv() {
