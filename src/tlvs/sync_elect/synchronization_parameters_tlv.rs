@@ -159,7 +159,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -167,7 +167,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -175,7 +175,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -183,7 +183,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -191,7 +191,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
                             band: Band::TwoPointFourGHz
                         },
                         8
@@ -199,7 +199,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
                             band: Band::TwoPointFourGHz
                         },
                         8
@@ -207,7 +207,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
                             band: Band::TwoPointFourGHz
                         },
                         8
@@ -215,7 +215,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Primary,
-                            channel_bandwidth: ChannelBandwidth::Unknown(2),
+                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
                             band: Band::TwoPointFourGHz
                         },
                         8
@@ -223,7 +223,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -231,7 +231,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -239,7 +239,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -247,7 +247,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         46
@@ -255,7 +255,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         38
@@ -263,7 +263,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         38
@@ -271,7 +271,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         38
@@ -279,7 +279,7 @@ fn test_sync_parameters_tlv() {
                     (
                         LegacyFlags {
                             support_channel: SupportChannel::Lower,
-                            channel_bandwidth: ChannelBandwidth::FourtyMHz,
+                            channel_bandwidth: ChannelBandwidth::EightyMHz,
                             band: Band::FiveGHz
                         },
                         38
