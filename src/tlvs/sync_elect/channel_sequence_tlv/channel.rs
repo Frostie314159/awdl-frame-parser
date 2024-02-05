@@ -45,7 +45,10 @@ serializable_enum! {
         TwentyMHz => 0x01,
 
         /// 40MHz
-        FourtyMHz => 0x03
+        FourtyMHz => 0x02,
+
+        /// 80MHz
+        EightyMHz => 0x03
     }
 }
 serializable_enum! {
