@@ -248,7 +248,7 @@ where
 }
 macro_rules! read_impls {
     ($self:expr, $raw_tlv:expr, $($path:ident),*) => {
-        match AWDLTLVType::from_representation($raw_tlv.tlv_type) {
+        match AWDLTLVType::from_bits($raw_tlv.tlv_type) {
             $(
                 AWDLTLVType::$path => Self::$path($raw_tlv.slice.pread(0)?),
             )*

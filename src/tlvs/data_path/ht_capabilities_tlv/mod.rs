@@ -27,10 +27,10 @@ impl<'a> TryFromCtx<'a> for HTCapabilitiesTLV {
         offset += 2;
         Ok((
             Self {
-                ht_capabilities_info: HTCapabilitiesInfo::from_representation(
+                ht_capabilities_info: HTCapabilitiesInfo::from_bits(
                     from.gread_with(&mut offset, Endian::Little)?,
                 ),
-                a_mpdu_parameters: AMpduParameters::from_representation(
+                a_mpdu_parameters: AMpduParameters::from_bits(
                     from.gread_with(&mut offset, Endian::Little)?,
                 ),
                 rx_spatial_stream_count: (from.len() - offset - 2) as u8,
@@ -46,11 +46,11 @@ impl TryIntoCtx for HTCapabilitiesTLV {
 
         offset += 2;
         buf.gwrite_with(
-            self.ht_capabilities_info.to_representation(),
+            self.ht_capabilities_info.into_bits(),
             &mut offset,
             Endian::Little,
         )?;
-        buf.gwrite(self.a_mpdu_parameters.to_representation(), &mut offset)?;
+        buf.gwrite(self.a_mpdu_parameters.into_bits(), &mut offset)?;
         for _ in 0..self.rx_spatial_stream_count {
             buf.gwrite(0xffu8, &mut offset)?;
         }

@@ -81,7 +81,7 @@ impl<'a> TryFromCtx<'a> for AWDLDnsName<ReadLabelIterator<'a>> {
         let mut offset = 0;
         let label_bytes = from.gread_with(&mut offset, from.len() - 2)?;
         let domain =
-            AWDLDnsCompression::from_representation(from.gread_with(&mut offset, NETWORK)?);
+            AWDLDnsCompression::from_bits(from.gread_with(&mut offset, NETWORK)?);
         Ok((
             Self {
                 labels: ReadLabelIterator::new(label_bytes),
@@ -102,7 +102,7 @@ where
         for x in self.labels {
             buf.gwrite(x, &mut offset)?;
         }
-        buf.gwrite_with(self.domain.to_representation(), &mut offset, NETWORK)?;
+        buf.gwrite_with(self.domain.into_bits(), &mut offset, NETWORK)?;
         Ok(offset)
     }
 }

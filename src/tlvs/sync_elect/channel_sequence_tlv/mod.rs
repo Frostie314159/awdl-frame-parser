@@ -44,7 +44,7 @@ impl<'a> TryFromCtx<'a> for ChannelSequenceTLV {
                 msg: "Channel sequence length wasn't 16.",
             });
         }
-        let channel_encoding = ChannelEncoding::from_representation(from.gread(&mut offset)?);
+        let channel_encoding = ChannelEncoding::from_bits(from.gread(&mut offset)?);
         offset += 1; // Skip duplicate count
         let step_count = NonZeroU8::new(from.gread::<u8>(&mut offset)?.checked_add(1).ok_or(
             scroll::Error::BadInput {
@@ -72,7 +72,7 @@ impl TryIntoCtx for ChannelSequenceTLV {
 
         buf.gwrite(16u8 - 1, &mut offset)?;
         buf.gwrite(
-            self.channel_sequence.channel_encoding().to_representation(),
+            self.channel_sequence.channel_encoding().into_bits(),
             &mut offset,
         )?;
         offset += 1;

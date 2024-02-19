@@ -87,11 +87,13 @@ impl<'a> TryFromCtx<'a> for AWDLActionFrame<TLVReadIterator<'a>> {
                 msg: "AF header version wasn't 1.0.",
             });
         }
-        let subtype = AWDLActionFrameSubType::from_representation(from.gread(&mut offset)?);
+        let subtype = AWDLActionFrameSubType::from_bits(from.gread(&mut offset)?);
         offset += 1;
 
-        let phy_tx_time = Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
-        let target_tx_time = Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
+        let phy_tx_time =
+            Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
+        let target_tx_time =
+            Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
         let tagged_data = TLVReadIterator::new(&from[offset..]);
 
         Ok((
@@ -115,10 +117,18 @@ where
         let mut offset = 0;
         buf.gwrite(8u8, &mut offset)?;
         buf.gwrite(0x10u8, &mut offset)?;
-        buf.gwrite(self.subtype.to_representation(), &mut offset)?;
+        buf.gwrite(self.subtype.into_bits(), &mut offset)?;
         offset += 1;
-        buf.gwrite_with(self.phy_tx_time.as_micros() as u32, &mut offset, Endian::Little)?;
-        buf.gwrite_with(self.target_tx_time.as_micros() as u32, &mut offset, Endian::Little)?;
+        buf.gwrite_with(
+            self.phy_tx_time.as_micros() as u32,
+            &mut offset,
+            Endian::Little,
+        )?;
+        buf.gwrite_with(
+            self.target_tx_time.as_micros() as u32,
+            &mut offset,
+            Endian::Little,
+        )?;
         for tlv in self.tagged_data {
             buf.gwrite(tlv, &mut offset)?;
         }

@@ -133,7 +133,7 @@ impl<'a> TryFromCtx<'a> for AWDLDnsRecord<'a, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
-        let record_type = AWDLDnsRecordType::from_representation(from.gread(&mut offset)?);
+        let record_type = AWDLDnsRecordType::from_bits(from.gread(&mut offset)?);
         offset += 4; // Skip length and unknown, because it's irrelevant for us.
         Ok((
             match record_type {
@@ -165,7 +165,7 @@ where
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
         let mut offset = 0;
-        buf.gwrite(self.record_type().to_representation(), &mut offset)?;
+        buf.gwrite(self.record_type().into_bits(), &mut offset)?;
         offset += 4;
         // Length will be inserted at the end, avoiding an allocation. Offset will be 1.
         match self {

@@ -87,7 +87,7 @@ impl<'a> TryFromCtx<'a, ChannelEncoding> for ChannelSequence {
                         .iter()
                         .enumerate()
                     {
-                        array[i] = (LegacyFlags::from_representation(bytes[0]), bytes[1]);
+                        array[i] = (LegacyFlags::from_bits(bytes[0]), bytes[1]);
                     }
                     array
                 }),
@@ -123,7 +123,7 @@ impl TryIntoCtx for ChannelSequence {
             ChannelSequence::Legacy(channels) => {
                 let mut offset = 0;
                 for (flags, channel) in channels.iter() {
-                    buf.gwrite(flags.to_representation(), &mut offset)?;
+                    buf.gwrite(flags.into_bits(), &mut offset)?;
                     buf.gwrite(channel, &mut offset)?;
                 }
                 Ok(offset)

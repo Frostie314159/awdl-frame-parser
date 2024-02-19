@@ -28,7 +28,7 @@ impl<'a> TryFromCtx<'a> for AWDLDataFrame<&'a [u8]> {
         }
         let sequence_number = from.gread_with(&mut offset, Endian::Little)?;
         offset += 2;
-        let ether_type = EtherType::from_representation(from.gread_with(&mut offset, Endian::Big)?);
+        let ether_type = EtherType::from_bits(from.gread_with(&mut offset, Endian::Big)?);
         let payload_len = from.len() - offset;
         let payload = from.gread_with(&mut offset, payload_len)?;
         Ok((
@@ -50,7 +50,7 @@ impl<P: TryIntoCtx<Error = scroll::Error>> TryIntoCtx for AWDLDataFrame<P> {
         buf.gwrite_with(self.sequence_number, &mut offset, Endian::Little)?;
         offset += 2;
         buf.gwrite_with(
-            self.ether_type.to_representation(),
+            self.ether_type.into_bits(),
             &mut offset,
             Endian::Big,
         )?;

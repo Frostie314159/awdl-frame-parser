@@ -116,7 +116,7 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
         let flags =
-            DataPathFlags::from_representation(from.gread_with(&mut offset, Endian::Little)?);
+            DataPathFlags::from_bits(from.gread_with(&mut offset, Endian::Little)?);
         let country_code = flags
             .country_code_present
             .then(|| {
@@ -135,7 +135,12 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
             .transpose()?;
         let infra_bssid_channel = flags
             .infra_bssid_channel_present
-            .then(|| Ok::<(MACAddress, u16), scroll::Error>((from.gread(&mut offset)?, from.gread(&mut offset)?)))
+            .then(|| {
+                Ok::<(MACAddress, u16), scroll::Error>((
+                    from.gread(&mut offset)?,
+                    from.gread(&mut offset)?,
+                ))
+            })
             .transpose()?;
         let infra_address = flags
             .infra_address_present
@@ -153,13 +158,13 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
                         from.gread_with::<u16>(&mut offset, Endian::Little)?;
                     match unicast_options_length {
                         4 => (
-                            Some(UnicastOptions::from_representation(
+                            Some(UnicastOptions::from_bits(
                                 from.gread_with(&mut offset, Endian::Little)?,
                             )),
                             None,
                         ),
                         8 => (
-                            Some(UnicastOptions::from_representation(
+                            Some(UnicastOptions::from_bits(
                                 from.gread_with(&mut offset, Endian::Little)?,
                             )),
                             Some(from.gread_with(&mut offset, Endian::Little)?),
@@ -179,8 +184,16 @@ impl<'a> TryFromCtx<'a> for DataPathStateTLV {
         let (extended_flags, log_trigger_id, rlfc, stats) = flags
             .extended_flags
             .then(|| {
-                Ok::<(Option<DataPathExtendedFlags>, Option<u16>, Option<u32>, Option<DataPathStats>), scroll::Error>({
-                    let extended_flags = DataPathExtendedFlags::from_representation(
+                Ok::<
+                    (
+                        Option<DataPathExtendedFlags>,
+                        Option<u16>,
+                        Option<u32>,
+                        Option<DataPathStats>,
+                    ),
+                    scroll::Error,
+                >({
+                    let extended_flags = DataPathExtendedFlags::from_bits(
                         from.gread_with(&mut offset, Endian::Little)?,
                     );
                     let log_trigger_id = extended_flags
@@ -250,7 +263,7 @@ impl TryIntoCtx for DataPathStateTLV {
                 flags.unicast_options_present = self.unicast_options.is_some();
                 flags.extended_flags = extended_flags.is_some();
 
-                flags.to_representation()
+                flags.into_bits()
             },
             &mut offset,
             Endian::Little,
@@ -277,7 +290,7 @@ impl TryIntoCtx for DataPathStateTLV {
             (Some(unicast_options), None) => {
                 buf.gwrite(4u16, &mut offset)?;
                 buf.gwrite_with(
-                    unicast_options.to_representation(),
+                    unicast_options.into_bits(),
                     &mut offset,
                     Endian::Little,
                 )?;
@@ -285,7 +298,7 @@ impl TryIntoCtx for DataPathStateTLV {
             (Some(unicast_options), Some(unicast_options_ext)) => {
                 buf.gwrite(8u16, &mut offset)?;
                 buf.gwrite_with(
-                    unicast_options.to_representation(),
+                    unicast_options.into_bits(),
                     &mut offset,
                     Endian::Little,
                 )?;
@@ -300,7 +313,7 @@ impl TryIntoCtx for DataPathStateTLV {
         }
         if let Some(extended_flags) = extended_flags {
             buf.gwrite_with(
-                extended_flags.to_representation(),
+                extended_flags.into_bits(),
                 &mut offset,
                 Endian::Little,
             )?;

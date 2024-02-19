@@ -42,8 +42,8 @@ impl<'a> TryFromCtx<'a> for VersionTLV {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
-        let version = AWDLVersion::from_representation(from.gread(&mut offset)?);
-        let device_class = AWDLDeviceClass::from_representation(from.gread(&mut offset)?);
+        let version = AWDLVersion::from_bits(from.gread(&mut offset)?);
+        let device_class = AWDLDeviceClass::from_bits(from.gread(&mut offset)?);
         Ok((
             Self {
                 version,
@@ -57,8 +57,8 @@ impl TryIntoCtx for VersionTLV {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
         let mut offset = 0;
-        buf.gwrite(self.version.to_representation(), &mut offset)?;
-        buf.gwrite(self.device_class.to_representation(), &mut offset)?;
+        buf.gwrite(self.version.into_bits(), &mut offset)?;
+        buf.gwrite(self.device_class.into_bits(), &mut offset)?;
         Ok(offset)
     }
 }

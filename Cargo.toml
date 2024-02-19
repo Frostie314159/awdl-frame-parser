@@ -16,6 +16,7 @@ name = "awdl_frame_parser"
 harness = false
 
 [dependencies]
+bitfield-struct = "0.6.0"
 ether-type = "0.1.2"
 mac-parser = "0.1.4"
 macro-bits = "0.1.4"

@@ -54,13 +54,13 @@ impl DataPathChannel {
                 channel: value as u8,
             }
         } else {
-            Self::ChannelMap(ChannelMap::from_representation(value))
+            Self::ChannelMap(ChannelMap::from_bits(value))
         }
     }
     pub fn as_u16(&self) -> u16 {
         match *self {
             DataPathChannel::SingleChannel { channel } => channel as u16,
-            DataPathChannel::ChannelMap(channel_map) => channel_map.to_representation(),
+            DataPathChannel::ChannelMap(channel_map) => channel_map.into_bits(),
         }
     }
 }
