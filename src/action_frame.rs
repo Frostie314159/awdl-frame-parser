@@ -4,7 +4,7 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-use core::fmt::Debug;
+use core::{fmt::Debug, time::Duration};
 
 use crate::tlvs::{TLVReadIterator, AWDLTLV};
 
@@ -26,13 +26,19 @@ pub struct AWDLActionFrame<I> {
     pub subtype: AWDLActionFrameSubType,
 
     /// The time the NIC physically started sending the frame, in μs.
-    pub phy_tx_time: u32,
+    pub phy_tx_time: Duration,
 
-    ///The time the driver send the frame to the NIC, in μs.
-    pub target_tx_time: u32,
+    /// The time the driver send the frame to the NIC, in μs.
+    pub target_tx_time: Duration,
 
     /// The TLVs contained in the action frame.
     pub tagged_data: I,
+}
+impl<I> AWDLActionFrame<I> {
+    /// Calculate the time, between the driver sending the frame to the WNIC and the transmission starting.
+    pub fn tx_delta(&self) -> Duration {
+        self.phy_tx_time - self.target_tx_time
+    }
 }
 impl<'a, I, MACIterator, LabelIterator, ValueIterator> Debug for AWDLActionFrame<I>
 where
@@ -84,8 +90,8 @@ impl<'a> TryFromCtx<'a> for AWDLActionFrame<TLVReadIterator<'a>> {
         let subtype = AWDLActionFrameSubType::from_representation(from.gread(&mut offset)?);
         offset += 1;
 
-        let phy_tx_time = from.gread_with(&mut offset, Endian::Little)?;
-        let target_tx_time = from.gread_with(&mut offset, Endian::Little)?;
+        let phy_tx_time = Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
+        let target_tx_time = Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
         let tagged_data = TLVReadIterator::new(&from[offset..]);
 
         Ok((
@@ -111,8 +117,8 @@ where
         buf.gwrite(0x10u8, &mut offset)?;
         buf.gwrite(self.subtype.to_representation(), &mut offset)?;
         offset += 1;
-        buf.gwrite_with(self.phy_tx_time, &mut offset, Endian::Little)?;
-        buf.gwrite_with(self.target_tx_time, &mut offset, Endian::Little)?;
+        buf.gwrite_with(self.phy_tx_time.as_micros() as u32, &mut offset, Endian::Little)?;
+        buf.gwrite_with(self.target_tx_time.as_micros() as u32, &mut offset, Endian::Little)?;
         for tlv in self.tagged_data {
             buf.gwrite(tlv, &mut offset)?;
         }
