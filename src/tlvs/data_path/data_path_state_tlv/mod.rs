@@ -7,8 +7,7 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
-pub use self::misc::DataPathStats;
-use self::misc::{DataPathChannel, UnicastOptions};
+pub use self::misc::{DataPathStats, DataPathChannel, UnicastOptions, ChannelMap};
 
 bitfield! {
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
