@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{array, fmt::Debug};
 
 use macro_bits::{bit, check_bit};
 use scroll::{
@@ -70,16 +70,14 @@ impl<'a> TryFromCtx<'a> for ServiceParametersTLV<ReadValueIterator<'a>> {
             .zip(from[offset..].iter())
             .flat_map(|(bit, byte)| {
                 let base = bit * 8;
-                (0..8)
-                    .map(|bit| {
-                        if check_bit!(byte, bit!(bit)) {
-                            Some(base + bit)
-                        } else {
-                            None
-                        }
-                    })
-                    .next_chunk::<8>()
-                    .unwrap()
+                let mut iter = (0..8).map(|bit| {
+                    if check_bit!(byte, bit!(bit)) {
+                        Some(base + bit)
+                    } else {
+                        None
+                    }
+                });
+                array::from_fn::<_, 8, _>(|_| iter.next().unwrap())
             })
             .flatten();
         Ok((

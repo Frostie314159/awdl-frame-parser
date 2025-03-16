@@ -40,26 +40,24 @@ impl<I> AWDLActionFrame<I> {
         self.phy_tx_time - self.target_tx_time
     }
 }
-impl<'a, I, MACIterator, LabelIterator, ValueIterator> Debug for AWDLActionFrame<I>
+impl<'a, I: Debug, MACIterator, LabelIterator> Debug for AWDLActionFrame<I>
 where
-    AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>: Debug,
-    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>> + Clone,
+    AWDLTLV<'a, MACIterator, LabelIterator>: Debug,
+    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator>> + Clone,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("AWDLActionFrame")
             .field("subtype", &self.subtype)
             .field("phy_tx_time", &self.phy_tx_time)
             .field("target_tx_time", &self.target_tx_time)
-            .field_with("tagged_data", |f| {
-                f.debug_list().entries(self.tagged_data.clone()).finish()
-            })
+            .field("tagged_data", &self.tagged_data)
             .finish()
     }
 }
-impl<'a, I, MACIterator, LabelIterator, ValueIterator> MeasureWith<()> for AWDLActionFrame<I>
+impl<'a, I, MACIterator, LabelIterator> MeasureWith<()> for AWDLActionFrame<I>
 where
-    AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>: MeasureWith<()>,
-    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>> + Clone,
+    AWDLTLV<'a, MACIterator, LabelIterator>: MeasureWith<()>,
+    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator>> + Clone,
 {
     fn measure_with(&self, _ctx: &()) -> usize {
         12 + self
@@ -107,10 +105,10 @@ impl<'a> TryFromCtx<'a> for AWDLActionFrame<TLVReadIterator<'a>> {
         ))
     }
 }
-impl<'a, I, MACIterator, LabelIterator, ValueIterator> TryIntoCtx for AWDLActionFrame<I>
+impl<'a, I, MACIterator, LabelIterator> TryIntoCtx for AWDLActionFrame<I>
 where
-    AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>: TryIntoCtx<(), Error = scroll::Error>,
-    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>>,
+    AWDLTLV<'a, MACIterator, LabelIterator>: TryIntoCtx<(), Error = scroll::Error>,
+    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator>>,
 {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {

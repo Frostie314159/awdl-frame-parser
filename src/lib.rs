@@ -1,12 +1,5 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(
-    iter_next_chunk,
-    array_chunks,
-    slice_as_chunks,
-    type_alias_impl_trait,
-    debug_closure_helpers
-)]
 
 #[cfg(test)]
 extern crate alloc;

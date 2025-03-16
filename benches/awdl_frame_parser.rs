@@ -2,7 +2,7 @@ use awdl_frame_parser::{
     action_frame::DefaultAWDLActionFrame,
     tlvs::{
         data_path::DataPathStateTLV,
-        dns_sd::{DefaultArpaTLV, DefaultServiceParametersTLV, DefaultServiceResponseTLV},
+        dns_sd::{DefaultArpaTLV, DefaultServiceResponseTLV},
         sync_elect::{ChannelSequenceTLV, DefaultSyncTreeTLV},
     },
 };
@@ -44,6 +44,7 @@ macro_rules! register_bench_fn {
 
 bench_read!(bench_read_af, DefaultAWDLActionFrame);
 bench_write!(bench_write_af, DefaultAWDLActionFrame, 0x1fff);
+/*
 bench_read!(
     bench_read_service_parmeters_tlv,
     DefaultServiceParametersTLV
@@ -53,6 +54,7 @@ bench_write!(
     DefaultServiceParametersTLV,
     0xff
 );
+*/
 bench_read!(bench_read_channel_sequence_tlv, ChannelSequenceTLV);
 bench_write!(bench_write_channel_sequence_tlv, ChannelSequenceTLV, 0xff);
 bench_read!(bench_read_sync_tree_tlv, DefaultSyncTreeTLV);
@@ -79,32 +81,29 @@ fn criterion_benchmark(c: &mut Criterion) {
     let data_path_state_tlv = data_path_state_tlv_bytes
         .pread::<DataPathStateTLV>(0)
         .unwrap();
-    register_bench_fn!(
-        c,
-        bench_write_data_path_state_tlv,
-        data_path_state_tlv.clone()
-    );
+    register_bench_fn!(c, bench_write_data_path_state_tlv, data_path_state_tlv);
 
+    /*
     let service_parameters_tlv_bytes =
         &include_bytes!("../test_bins/service_parameters_tlv.bin")[3..];
-    register_bench_fn!(
-        c,
-        bench_read_service_parmeters_tlv,
-        service_parameters_tlv_bytes
-    );
-    let service_parameters_tlv = service_parameters_tlv_bytes
-        .pread::<DefaultServiceParametersTLV>(0)
-        .unwrap();
-    register_bench_fn!(
-        c,
-        bench_write_service_parameters_tlv,
-        service_parameters_tlv.clone()
-    );
-
+        register_bench_fn!(
+            c,
+            bench_read_service_parmeters_tlv,
+            service_parameters_tlv_bytes
+        );
+        let service_parameters_tlv = service_parameters_tlv_bytes
+            .pread::<DefaultServiceParametersTLV>(0)
+            .unwrap();
+        register_bench_fn!(
+            c,
+            bench_write_service_parameters_tlv,
+            service_parameters_tlv.clone()
+        );
+    */
     let sync_tree_tlv_bytes = &include_bytes!("../test_bins/sync_tree_tlv.bin")[3..];
     register_bench_fn!(c, bench_read_sync_tree_tlv, sync_tree_tlv_bytes);
     let sync_tree_tlv = sync_tree_tlv_bytes.pread::<DefaultSyncTreeTLV>(0).unwrap();
-    register_bench_fn!(c, bench_write_sync_tree_tlv, sync_tree_tlv.clone());
+    register_bench_fn!(c, bench_write_sync_tree_tlv, sync_tree_tlv);
 
     let service_response_tlv_bytes =
         &include_bytes!("../test_bins/service_response_tlv_txt.bin")[3..];
@@ -116,18 +115,14 @@ fn criterion_benchmark(c: &mut Criterion) {
     let service_response_tlv = service_response_tlv_bytes
         .pread::<DefaultServiceResponseTLV>(0)
         .unwrap();
-    register_bench_fn!(
-        c,
-        bench_write_service_response_tlv,
-        service_response_tlv.clone()
-    );
+    register_bench_fn!(c, bench_write_service_response_tlv, service_response_tlv);
 
     let arpa_tlv_bytes = &include_bytes!("../test_bins/arpa_tlv.bin")[3..];
     register_bench_fn!(c, bench_read_arpa_tlv, arpa_tlv_bytes);
     let arpa_tlv = service_response_tlv_bytes
         .pread::<DefaultArpaTLV>(0)
         .unwrap();
-    register_bench_fn!(c, bench_write_arpa_tlv, arpa_tlv.clone());
+    register_bench_fn!(c, bench_write_arpa_tlv, arpa_tlv);
 
     let channel_sequence_tlv_bytes = &include_bytes!("../test_bins/channel_sequence_tlv.bin")[3..];
     register_bench_fn!(

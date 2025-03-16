@@ -80,26 +80,14 @@ impl<'a> TryFromCtx<'a, ChannelEncoding> for ChannelSequence {
                 }
                 ChannelEncoding::Legacy => ChannelSequence::Legacy({
                     let mut array = [(LegacyFlags::default(), 0); 16];
-                    for (i, bytes) in from
-                        .gread::<[u8; 32]>(&mut offset)?
-                        .as_chunks::<2>()
-                        .0
-                        .iter()
-                        .enumerate()
-                    {
+                    for (i, bytes) in from.gread::<[u8; 32]>(&mut offset)?.chunks(2).enumerate() {
                         array[i] = (LegacyFlags::from_bits(bytes[0]), bytes[1]);
                     }
                     array
                 }),
                 ChannelEncoding::OpClass => ChannelSequence::OpClass({
                     let mut array = [(0, 0); 16];
-                    for (i, bytes) in from
-                        .gread::<[u8; 32]>(&mut offset)?
-                        .as_chunks::<2>()
-                        .0
-                        .iter()
-                        .enumerate()
-                    {
+                    for (i, bytes) in from.gread::<[u8; 32]>(&mut offset)?.chunks(2).enumerate() {
                         array[i] = (bytes[0], bytes[1]);
                     }
                     array

@@ -19,7 +19,7 @@ use crate::common::{AWDLStr, ReadLabelIterator};
 
 use self::{
     data_path::{DataPathStateTLV, HTCapabilitiesTLV, IEEE80211ContainerTLV},
-    dns_sd::{ArpaTLV, ReadValueIterator, ServiceParametersTLV, ServiceResponseTLV},
+    dns_sd::{ArpaTLV, ServiceResponseTLV},
     sync_elect::{
         ChannelSequenceTLV, ElectionParametersTLV, ElectionParametersV2TLV, ReadMACIterator,
         SyncTreeTLV, SynchronizationParametersTLV,
@@ -44,8 +44,8 @@ serializable_enum! {
         /// The election parameters.
         ElectionParameters => 0x05,
 
-        /// The service parameters.
-        ServiceParameters => 0x06,
+        // The service parameters.
+        //ServiceParameters => 0x06,
 
         /// The HT capabilities.
         HTCapabilities => 0x07,
@@ -77,11 +77,10 @@ pub type RawAWDLTLV<'a> = RawTLV<'a, u8, u16>;
 pub type TypedAWDLTLV<'a, Payload> = TLV<u8, u16, AWDLTLVType, Payload>;
 
 #[derive(Clone)]
-pub enum AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator> {
+pub enum AWDLTLV<'a, MACIterator, LabelIterator> {
     ServiceResponse(ServiceResponseTLV<'a, LabelIterator>),
     SynchronizationParameters(SynchronizationParametersTLV),
     ElectionParameters(ElectionParametersTLV),
-    ServiceParameters(ServiceParametersTLV<ValueIterator>),
     HTCapabilities(HTCapabilitiesTLV),
     DataPathState(DataPathStateTLV),
     Arpa(ArpaTLV<LabelIterator>),
@@ -96,38 +95,28 @@ macro_rules! comparisons {
     ($self:expr, $other:expr, $($path:ident),*) => {
         match ($self, $other) {
             $(
-                (Self::$path(lhs), AWDLTLV::<'a, RhsMACIterator, RhsLabelIterator, RhsValueIterator>::$path(rhs)) => lhs == rhs,
+                (Self::$path(lhs), AWDLTLV::<'a, RhsMACIterator, RhsLabelIterator>::$path(rhs)) => lhs == rhs,
             )*
             _ => false,
         }
     };
 }
-impl<
-        'a,
-        LhsMACIterator,
-        RhsMACIterator,
-        LhsLabelIterator,
-        RhsLabelIterator,
-        LhsValueIterator,
-        RhsValueIterator,
-    > PartialEq<AWDLTLV<'a, RhsMACIterator, RhsLabelIterator, RhsValueIterator>>
-    for AWDLTLV<'a, LhsMACIterator, LhsLabelIterator, LhsValueIterator>
+impl<'a, LhsMACIterator, RhsMACIterator, LhsLabelIterator, RhsLabelIterator>
+    PartialEq<AWDLTLV<'a, RhsMACIterator, RhsLabelIterator>>
+    for AWDLTLV<'a, LhsMACIterator, LhsLabelIterator>
 where
     LhsMACIterator: IntoIterator<Item = MACAddress> + Clone,
     RhsMACIterator: IntoIterator<Item = MACAddress> + Clone,
     LhsLabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     RhsLabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    LhsValueIterator: IntoIterator<Item = u8> + Clone,
-    RhsValueIterator: IntoIterator<Item = u8> + Clone,
 {
-    fn eq(&self, other: &AWDLTLV<'a, RhsMACIterator, RhsLabelIterator, RhsValueIterator>) -> bool {
+    fn eq(&self, other: &AWDLTLV<'a, RhsMACIterator, RhsLabelIterator>) -> bool {
         comparisons!(
             self,
             other,
             ServiceResponse,
             SynchronizationParameters,
             ElectionParameters,
-            ServiceParameters,
             HTCapabilities,
             DataPathState,
             Arpa,
@@ -140,12 +129,10 @@ where
         )
     }
 }
-impl<'a, MACIterator, LabelIterator, ValueIterator> Eq
-    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+impl<'a, MACIterator, LabelIterator> Eq for AWDLTLV<'a, MACIterator, LabelIterator>
 where
     MACIterator: IntoIterator<Item = MACAddress> + Clone,
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
-    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
 }
 macro_rules! debug_impls {
@@ -157,12 +144,10 @@ macro_rules! debug_impls {
         }
     };
 }
-impl<'a, MACIterator, LabelIterator, ValueIterator> Debug
-    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+impl<'a, MACIterator, LabelIterator> Debug for AWDLTLV<'a, MACIterator, LabelIterator>
 where
     MACIterator: IntoIterator<Item = MACAddress> + Clone + Debug,
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone + Debug,
-    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         debug_impls!(
@@ -171,7 +156,6 @@ where
             ServiceResponse,
             SynchronizationParameters,
             ElectionParameters,
-            ServiceParameters,
             HTCapabilities,
             DataPathState,
             Arpa,
@@ -184,13 +168,11 @@ where
         )
     }
 }
-impl<'a, MACIterator, LabelIterator, ValueIterator>
-    AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+impl<'a, MACIterator, LabelIterator> AWDLTLV<'a, MACIterator, LabelIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
     MACIterator: IntoIterator<Item = MACAddress> + Clone,
-    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     pub const fn get_type(&self) -> AWDLTLVType {
         match self {
@@ -201,7 +183,6 @@ where
             AWDLTLV::ElectionParametersV2(_) => AWDLTLVType::ElectionParametersV2,
             AWDLTLV::HTCapabilities(_) => AWDLTLVType::HTCapabilities,
             AWDLTLV::IEEE80211Container(_) => AWDLTLVType::IEEE80211Container,
-            AWDLTLV::ServiceParameters(_) => AWDLTLVType::ServiceParameters,
             AWDLTLV::ServiceResponse(_) => AWDLTLVType::ServiceResponse,
             AWDLTLV::SynchronizationParameters(_) => AWDLTLVType::SynchronizationParameters,
             AWDLTLV::SynchronizationTree(_) => AWDLTLVType::SynchronizationTree,
@@ -220,12 +201,10 @@ macro_rules! measure_with_impls {
         }
     };
 }
-impl<'a, MACIterator, LabelIterator, ValueIterator> MeasureWith<()>
-    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+impl<'a, MACIterator, LabelIterator> MeasureWith<()> for AWDLTLV<'a, MACIterator, LabelIterator>
 where
     MACIterator: ExactSizeIterator,
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone + Debug,
-    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     fn measure_with(&self, ctx: &()) -> usize {
         3 + measure_with_impls!(
@@ -234,7 +213,6 @@ where
             ServiceResponse,
             SynchronizationParameters,
             ElectionParameters,
-            ServiceParameters,
             HTCapabilities,
             DataPathState,
             Arpa,
@@ -265,9 +243,7 @@ macro_rules! read_impls {
         }
     };
 }
-impl<'a> TryFromCtx<'a>
-    for AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>
-{
+impl<'a> TryFromCtx<'a> for AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let (raw_tlv, len) =
@@ -279,7 +255,6 @@ impl<'a> TryFromCtx<'a>
                 ServiceResponse,
                 SynchronizationParameters,
                 ElectionParameters,
-                ServiceParameters,
                 HTCapabilities,
                 DataPathState,
                 Arpa,
@@ -311,13 +286,11 @@ macro_rules! write_impls {
         }
     };
 }
-impl<'a, MACIterator, LabelIterator, ValueIterator> TryIntoCtx
-    for AWDLTLV<'a, MACIterator, LabelIterator, ValueIterator>
+impl<'a, MACIterator, LabelIterator> TryIntoCtx for AWDLTLV<'a, MACIterator, LabelIterator>
 where
     LabelIterator: IntoIterator<Item = AWDLStr<'a>> + Clone,
     <LabelIterator as IntoIterator>::IntoIter: Clone,
     MACIterator: IntoIterator<Item = MACAddress> + ExactSizeIterator + Clone,
-    ValueIterator: IntoIterator<Item = u8> + Clone,
 {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
@@ -329,7 +302,6 @@ where
             ServiceResponse,
             SynchronizationParameters,
             ElectionParameters,
-            ServiceParameters,
             HTCapabilities,
             DataPathState,
             Arpa,
@@ -343,8 +315,7 @@ where
 }
 
 /// Default [AWDLTLV] returned by reading.
-pub type DefaultAWDLTLV<'a> =
-    AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>, ReadValueIterator<'a>>;
+pub type DefaultAWDLTLV<'a> = AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TLVReadIterator<'a> {
