@@ -5,7 +5,7 @@ pub mod dns_sd;
 /// TLVs about the synchronization and election state of the peer.
 pub mod sync_elect;
 pub mod version;
-use core::{fmt::Debug, marker::PhantomData};
+use core::{fmt::Debug, iter::repeat, marker::PhantomData};
 
 use mac_parser::MACAddress;
 use macro_bits::serializable_enum;
@@ -71,6 +71,10 @@ serializable_enum! {
         /// The V2 Election Parameters.
         ElectionParametersV2 => 0x18
     }
+}
+/// A trait implemented by all AWDL TLVs.
+pub trait AwdlTlv {
+    const TLV_TYPE: AWDLTLVType;
 }
 
 pub type RawAWDLTLV<'a> = RawTLV<'a, u8, u16>;
@@ -318,28 +322,54 @@ where
 pub type DefaultAWDLTLV<'a> = AWDLTLV<'a, ReadMACIterator<'a>, ReadLabelIterator<'a>>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct TLVReadIterator<'a> {
-    bytes: Option<&'a [u8]>,
+/// A container for the TLVs in an action frame.
+pub struct ReadTLVs<'a> {
+    bytes: &'a [u8],
 }
-impl<'a> TLVReadIterator<'a> {
-    pub fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes: Some(bytes) }
+impl<'a> ReadTLVs<'a> {
+    pub const fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes }
+    }
+    /// Get an iterator over [RawAWDLTLV]'s.
+    pub fn raw_tlv_iter(&self) -> impl Iterator<Item = RawAWDLTLV<'a>> + '_ {
+        repeat(()).scan(0usize, |offset, _| {
+            self.bytes.gread::<RawAWDLTLV>(offset).ok()
+        })
+    }
+    /// Check if the TLV type matches and try to parse the TLV.
+    fn match_and_parse_tlv<Tlv: AwdlTlv + TryFromCtx<'a, Error = scroll::Error>>(
+        &self,
+        raw_tlv: RawAWDLTLV<'a>,
+    ) -> Option<Tlv> {
+        if raw_tlv.tlv_type == Tlv::TLV_TYPE.into_bits() {
+            raw_tlv.slice.pread::<Tlv>(0).ok()
+        } else {
+            None
+        }
+    }
+    /// Get an iterator over matching TLVs.
+    pub fn get_tlvs<Tlv: AwdlTlv + TryFromCtx<'a, Error = scroll::Error>>(
+        &self,
+    ) -> impl Iterator<Item = Tlv> + use<'_, 'a, Tlv> {
+        self.raw_tlv_iter()
+            .filter_map(|raw_tlv| self.match_and_parse_tlv(raw_tlv))
+    }
+    /// Get the first matching TLV.
+    pub fn get_first_tlv<Tlv: AwdlTlv + TryFromCtx<'a, Error = scroll::Error>>(
+        &self,
+    ) -> Option<Tlv> {
+        self.raw_tlv_iter()
+            .find_map(|raw_tlv| self.match_and_parse_tlv(raw_tlv))
     }
 }
-impl<'a> Iterator for TLVReadIterator<'a> {
-    type Item = DefaultAWDLTLV<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut offset = 0;
-
-        let tlv = match self.bytes?.gread(&mut offset).ok() {
-            Some(tlv) => tlv,
-            None => {
-                self.bytes = None;
-                return None;
-            }
-        };
-        self.bytes = self.bytes.map(|bytes| &bytes[offset..]);
-
-        Some(tlv)
+impl MeasureWith<()> for ReadTLVs<'_> {
+    fn measure_with(&self, _ctx: &()) -> usize {
+        self.bytes.len()
+    }
+}
+impl TryIntoCtx<()> for ReadTLVs<'_> {
+    type Error = scroll::Error;
+    fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        buf.pwrite(self.bytes, 0)
     }
 }

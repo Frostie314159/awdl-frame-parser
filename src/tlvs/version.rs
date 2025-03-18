@@ -5,6 +5,8 @@ use scroll::{
     Pread, Pwrite,
 };
 
+use super::{AWDLTLVType, AwdlTlv};
+
 serializable_enum! {
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     /// The device class of the peer.
@@ -32,6 +34,9 @@ pub struct VersionTLV {
 
     /// The device class.
     pub device_class: AWDLDeviceClass,
+}
+impl AwdlTlv for VersionTLV {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::Version;
 }
 impl MeasureWith<()> for VersionTLV {
     fn measure_with(&self, _ctx: &()) -> usize {

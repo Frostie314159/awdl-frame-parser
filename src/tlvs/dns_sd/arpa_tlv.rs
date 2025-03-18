@@ -3,13 +3,19 @@ use scroll::{
     Pread, Pwrite,
 };
 
-use crate::common::{AWDLDnsName, AWDLStr, ReadLabelIterator};
+use crate::{
+    common::{AWDLDnsName, AWDLStr, ReadLabelIterator},
+    tlvs::{AWDLTLVType, AwdlTlv},
+};
 
 #[derive(Clone, Copy, Debug, Default, Hash)]
 /// A TLV containing the hostname of the peer. Used for reverse DNS.
 pub struct ArpaTLV<I> {
     /// The actual arpa data.
     pub arpa: AWDLDnsName<I>,
+}
+impl<I> AwdlTlv for ArpaTLV<I> {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::Arpa;
 }
 impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for ArpaTLV<I> {}
 impl<'a, LhsIterator, RhsIterator> PartialEq<ArpaTLV<RhsIterator>> for ArpaTLV<LhsIterator>

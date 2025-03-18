@@ -4,6 +4,8 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
+
 use super::ChannelSequenceTLV;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -29,6 +31,9 @@ pub struct SynchronizationParametersTLV {
     pub ap_beacon_alignment_delta: u16,
     /// This isn't actually a TLV, but contains the functionality we need.
     pub channel_sequence: ChannelSequenceTLV,
+}
+impl AwdlTlv for SynchronizationParametersTLV {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::SynchronizationParameters;
 }
 impl MeasureWith<()> for SynchronizationParametersTLV {
     fn measure_with(&self, ctx: &()) -> usize {

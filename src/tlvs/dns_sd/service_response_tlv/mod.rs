@@ -1,6 +1,9 @@
 pub mod dns_record;
 
-use crate::common::{AWDLDnsName, AWDLStr, ReadLabelIterator};
+use crate::{
+    common::{AWDLDnsName, AWDLStr, ReadLabelIterator},
+    tlvs::{AWDLTLVType, AwdlTlv},
+};
 
 use dns_record::AWDLDnsRecord;
 
@@ -17,6 +20,9 @@ pub struct ServiceResponseTLV<'a, I> {
 
     /// The DNS record contained in this response.
     pub record: AWDLDnsRecord<'a, I>,
+}
+impl<I> AwdlTlv for ServiceResponseTLV<'_, I> {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::ServiceResponse;
 }
 impl<'a, I: IntoIterator<Item = AWDLStr<'a>> + Clone> Eq for ServiceResponseTLV<'a, I> {}
 impl<'a, LhsIterator, RhsIterator> PartialEq<ServiceResponseTLV<'a, RhsIterator>>

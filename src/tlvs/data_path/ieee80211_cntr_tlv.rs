@@ -4,15 +4,20 @@ use scroll::{
 };
 use tlv_rs::raw_tlv::RawTLV;
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
+
 pub type IEEE80211TLV<'a> = RawTLV<'a, u8, u8>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// This TLV just encapsulates an IEEE802.11 TLV.
 ///
-/// In reality, this just contains an EHT capabilities TLV, but for future compatibility we'll just make it do this now.
+/// In reality, this just contains a VHT capabilities TLV, but for future compatibility we'll just make it do this now.
 /// Maybe there will be a parser for IEEE802.11 frames, relying on bin-utils and tlv-rs in the future(foreshadowing).
 pub struct IEEE80211ContainerTLV<'a> {
     pub tlv: IEEE80211TLV<'a>,
+}
+impl AwdlTlv for IEEE80211ContainerTLV<'_> {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::IEEE80211Container;
 }
 impl<'a> MeasureWith<()> for IEEE80211ContainerTLV<'a> {
     fn measure_with(&self, _ctx: &()) -> usize {

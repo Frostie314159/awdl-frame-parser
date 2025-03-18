@@ -8,11 +8,16 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct HTCapabilitiesTLV {
     pub ht_capabilities_info: HTCapabilitiesInfo,
     pub a_mpdu_parameters: AMpduParameters,
     pub rx_spatial_stream_count: u8,
+}
+impl AwdlTlv for HTCapabilitiesTLV {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::HTCapabilities;
 }
 impl MeasureWith<()> for HTCapabilitiesTLV {
     fn measure_with(&self, _ctx: &()) -> usize {

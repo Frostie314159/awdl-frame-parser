@@ -6,7 +6,7 @@ use scroll::{
 
 use core::{fmt::Debug, time::Duration};
 
-use crate::tlvs::{TLVReadIterator, AWDLTLV};
+use crate::tlvs::{ReadTLVs, AWDLTLV};
 
 serializable_enum! {
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -54,22 +54,15 @@ where
             .finish()
     }
 }
-impl<'a, I, MACIterator, LabelIterator> MeasureWith<()> for AWDLActionFrame<I>
-where
-    AWDLTLV<'a, MACIterator, LabelIterator>: MeasureWith<()>,
-    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator>> + Clone,
+impl<I: MeasureWith<()>> MeasureWith<()> for AWDLActionFrame<I>
 {
-    fn measure_with(&self, _ctx: &()) -> usize {
+    fn measure_with(&self, ctx: &()) -> usize {
         12 + self
-            .tagged_data
-            .clone()
-            .into_iter()
-            .map(|tlv| tlv.measure_with(&()))
-            .sum::<usize>()
+            .tagged_data.measure_with(ctx)
     }
 }
 
-impl<'a> TryFromCtx<'a> for AWDLActionFrame<TLVReadIterator<'a>> {
+impl<'a> TryFromCtx<'a> for AWDLActionFrame<ReadTLVs<'a>> {
     type Error = scroll::Error;
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
@@ -92,7 +85,7 @@ impl<'a> TryFromCtx<'a> for AWDLActionFrame<TLVReadIterator<'a>> {
             Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
         let target_tx_time =
             Duration::from_micros(from.gread_with::<u32>(&mut offset, Endian::Little)? as u64);
-        let tagged_data = TLVReadIterator::new(&from[offset..]);
+        let tagged_data = ReadTLVs::new(&from[offset..]);
 
         Ok((
             Self {
@@ -105,10 +98,7 @@ impl<'a> TryFromCtx<'a> for AWDLActionFrame<TLVReadIterator<'a>> {
         ))
     }
 }
-impl<'a, I, MACIterator, LabelIterator> TryIntoCtx for AWDLActionFrame<I>
-where
-    AWDLTLV<'a, MACIterator, LabelIterator>: TryIntoCtx<(), Error = scroll::Error>,
-    I: IntoIterator<Item = AWDLTLV<'a, MACIterator, LabelIterator>>,
+impl<I: TryIntoCtx<(), Error = scroll::Error>> TryIntoCtx for AWDLActionFrame<I>
 {
     type Error = scroll::Error;
     fn try_into_ctx(self, buf: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
@@ -127,14 +117,12 @@ where
             &mut offset,
             Endian::Little,
         )?;
-        for tlv in self.tagged_data {
-            buf.gwrite(tlv, &mut offset)?;
-        }
+        buf.gwrite(self.tagged_data, &mut offset)?;
         Ok(offset)
     }
 }
 /// The default awdl action frame returned by reading.
-pub type DefaultAWDLActionFrame<'a> = AWDLActionFrame<TLVReadIterator<'a>>;
+pub type DefaultAWDLActionFrame<'a> = AWDLActionFrame<ReadTLVs<'a>>;
 #[cfg(test)]
 #[test]
 fn test_action_frame() {

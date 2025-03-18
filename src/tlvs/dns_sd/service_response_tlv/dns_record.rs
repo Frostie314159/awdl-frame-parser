@@ -78,7 +78,7 @@ where
             ) => lhs_txt_record
                 .clone()
                 .into_iter()
-                .eq(rhs_txt_record.clone().into_iter()),
+                .eq(rhs_txt_record.clone()),
             (
                 AWDLDnsRecord::SRV {
                     priority: lhs_priority,

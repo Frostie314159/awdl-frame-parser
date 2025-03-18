@@ -4,6 +4,8 @@ use scroll::{
     Endian, Pread, Pwrite,
 };
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 /// A TLV describing the election parameters of a peer.
 pub struct ElectionParametersTLV {
@@ -29,6 +31,9 @@ impl ElectionParametersTLV {
     pub const fn size_in_bytes() -> usize {
         21
     }
+}
+impl AwdlTlv for ElectionParametersTLV {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::ElectionParameters;
 }
 impl SizeWith for ElectionParametersTLV {
     fn size_with(_ctx: &()) -> usize {

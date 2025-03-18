@@ -6,6 +6,8 @@ use scroll::{
     Pread, Pwrite,
 };
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ReadMACIterator<'a> {
     bytes: &'a [u8],
@@ -40,6 +42,9 @@ impl Display for ReadMACIterator<'_> {
 pub struct SyncTreeTLV<I> {
     /// The MACs.
     pub tree: I,
+}
+impl<I> AwdlTlv for SyncTreeTLV<I> {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::SynchronizationTree;
 }
 impl<LhsIterator, RhsIterator> PartialEq<SyncTreeTLV<RhsIterator>> for SyncTreeTLV<LhsIterator>
 where

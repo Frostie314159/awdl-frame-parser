@@ -1,5 +1,6 @@
 use core::{array, fmt::Debug};
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
 use macro_bits::{bit, check_bit};
 use scroll::{
     ctx::{MeasureWith, TryFromCtx, TryIntoCtx},
@@ -15,6 +16,9 @@ pub struct ServiceParametersTLV<I> {
     pub sui: u16,
     /// No idea honestly.
     pub encoded_values: I,
+}
+impl<I> AwdlTlv for ServiceParametersTLV<I> {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::ServiceParameters;
 }
 impl<I> Debug for ServiceParametersTLV<I>
 where

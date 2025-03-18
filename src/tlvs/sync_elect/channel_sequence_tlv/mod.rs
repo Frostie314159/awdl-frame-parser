@@ -11,6 +11,8 @@ use scroll::{
     Pread, Pwrite,
 };
 
+use crate::tlvs::{AWDLTLVType, AwdlTlv};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChannelSequenceTLV {
     /// The amount of AWs spent on one channel.
@@ -18,6 +20,9 @@ pub struct ChannelSequenceTLV {
 
     /// The channels.
     pub channel_sequence: ChannelSequence,
+}
+impl AwdlTlv for ChannelSequenceTLV {
+    const TLV_TYPE: AWDLTLVType = AWDLTLVType::ChannelSequence;
 }
 impl Default for ChannelSequenceTLV {
     fn default() -> Self {
